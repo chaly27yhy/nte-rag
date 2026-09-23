@@ -1,0 +1,7 @@
+# 仅开发/打包期依赖，绝不进入 exe 运行时（app/ 代码不得 import）
+-r requirements.txt
+pyinstaller>=6.10
+pillow>=10.4
+# pythonnet 是原生窗口（WebView2 后端）的承重件，也写在 NTE-RAG.spec 的 hiddenimports 里；
+# pywebview 在 Windows 上声明了它，这里仍然显式写出。
+pythonnet>=3.0

@@ -1,0 +1,329 @@
+{
+  "version": 1,
+  "generated_at": "2026-09-22T00:00:00",
+  "note": "表格类专项题集：18 道题，取材于弧盘图鉴、角色图鉴、道具图鉴与官方公告里的表格，考察数值与表格字段的抽取质量。每题按 expected_points 逐条判分，用 expected_sources 检验检索是否命中期望来源。review.status 记录审核状态：pending 为自动生成、尚未审核，ok 为已确认题目与要点正确，fixed 为审核中修正过要点、来源或标签，drop 为剔除、不参与评测。review.comment 记录该题的复核结论与理由。审核结果只写进 review 的两个字段：JSON 不支持注释，写在结构外面会让文件无法解析。",
+  "items": [
+    {
+      "question": "弧盘「成功的第一步」的稀有度是什么？",
+      "expected_points": [
+        "B"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E5%BC%A7%E7%9B%98%E5%9B%BE%E9%89%B4"
+      ],
+      "category": "弧盘",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q001"
+    },
+    {
+      "question": "装备弧盘「成功的第一步」后，释放变轨技能会带来什么效果？",
+      "expected_points": [
+        "自身攻击力提升12.00%",
+        "持续10秒",
+        "20秒内最多触发一次"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E5%BC%A7%E7%9B%98%E5%9B%BE%E9%89%B4"
+      ],
+      "category": "弧盘",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q002"
+    },
+    {
+      "question": "角色「真红」的战斗类型是什么？",
+      "expected_points": [
+        "主力输出"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E8%A7%92%E8%89%B2%E5%9B%BE%E9%89%B4"
+      ],
+      "category": "角色",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q003"
+    },
+    {
+      "question": "「轨外回响」活动无尽挑战这次修复了什么问题？",
+      "expected_points": [
+        "时长达到60分钟导致结算概率失败的问题"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260904/263926.html"
+      ],
+      "category": "公告",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q004"
+    },
+    {
+      "question": "「轨外回响」无尽挑战的修复公告里，除了结算失败问题，还提到了哪些与天赋相关的修复？",
+      "expected_points": [
+        "部分天赋节点天赋点实际消耗数量与界面显示不一致",
+        "天赋点不足时界面显示异常"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260904/263926.html"
+      ],
+      "category": "公告",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q005"
+    },
+    {
+      "question": "预抽卡活动中，除了首选之外，其次推荐选择哪些道具？",
+      "expected_points": [
+        "方斯",
+        "甲硬币"
+      ],
+      "expected_sources": [
+        "https://www.gamersky.com/handbook/202604/2116188.shtml"
+      ],
+      "category": "活动",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q006"
+    },
+    {
+      "question": "预抽卡次选的方斯和甲硬币分别有什么用途？",
+      "expected_points": [
+        "方斯是货币，用于买道具、升级都市大亨等级",
+        "甲硬币是养成资源，用于升级角色、武器"
+      ],
+      "expected_sources": [
+        "https://www.gamersky.com/handbook/202604/2116188.shtml"
+      ],
+      "category": "活动",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q007"
+    },
+    {
+      "question": "回归鉴定师登录游戏后需要完成什么才能分享个人专属邀请码邀请他人参与网页活动？",
+      "expected_points": [
+        "完成3日任务"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gameevent/20260706/263032.html"
+      ],
+      "category": "活动",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q008"
+    },
+    {
+      "question": "回归鉴定师状态更新有延迟的话，可以怎么处理？",
+      "expected_points": [
+        "等待2-4分钟后刷新网页查看"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gameevent/20260706/263032.html"
+      ],
+      "category": "活动",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q009"
+    },
+    {
+      "question": "道具「甲硬币」的类型是什么？",
+      "expected_points": [
+        "货币"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E9%81%93%E5%85%B7%E5%9B%BE%E9%89%B4"
+      ],
+      "category": "道具",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q010"
+    },
+    {
+      "question": "甲硬币可以通过哪些途径获取？",
+      "expected_points": [
+        "材料自选箱",
+        "胡迪尼的艺术舞台",
+        "猎人交易所",
+        "世界探索"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E9%81%93%E5%85%B7%E5%9B%BE%E9%89%B4"
+      ],
+      "category": "道具",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：expected_points 维持四项。联网实测 BWIKI 道具图鉴「甲硬币」行原文为「| | 甲硬币 | 文件:B标识.png | 货币 | 材料自选箱 胡迪尼的艺术舞台 猎人交易所 世界探索 | 常用的角色养成材料。 | |」（HTTP 200），列数与表头（道具/名称/稀有度/类型/获取途径/描述/介绍）完全对应，四项获取途径同处「获取途径」单元格内，属非抽取错误；起初只逐项点开页面核对，故「世界探索」一度未在已打开页面中直接找到。"
+      },
+      "id": "q011"
+    },
+    {
+      "question": "每日敌影清缴能获得多少甲硬币？耗时多久？",
+      "expected_points": [
+        "25128甲硬币",
+        "耗时4H"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622504.html"
+      ],
+      "category": "资源获取",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q012"
+    },
+    {
+      "question": "不耗体力获取甲硬币的方式里，哪些是不推荐的？",
+      "expected_points": [
+        "迷迭棋子兑换40w甲硬币（不推荐）",
+        "异境回收站兑换35w甲硬币（不推荐）",
+        "每日许愿池1500甲硬币（不推荐）"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622504.html"
+      ],
+      "category": "资源获取",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q013"
+    },
+    {
+      "question": "角色满好感需要多少好感度？",
+      "expected_points": [
+        "56100好感度"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622499.html"
+      ],
+      "category": "角色养成",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q014"
+    },
+    {
+      "question": "残虹时装「堇色流火」的折扣价和原价分别是多少异晶？折扣时间是什么时候？",
+      "expected_points": [
+        "折扣价格2680异晶",
+        "原价3280异晶",
+        "折扣时间为8月20日06:30-9月24日05:59"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260812/263538.html"
+      ],
+      "category": "时装商城",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q015"
+    },
+    {
+      "question": "娜娜莉在角色图鉴中的类型和战斗类型分别是什么？",
+      "expected_points": [
+        "类型为输出",
+        "战斗类型为主力输出、追加攻击"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E8%A7%92%E8%89%B2%E5%9B%BE%E9%89%B4"
+      ],
+      "category": "角色",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q016"
+    },
+    {
+      "question": "伊波恩合伙人行动最高可获得多少环石奖励？",
+      "expected_points": [
+        "940环石"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gameevent/20260706/263032.html"
+      ],
+      "category": "活动",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q017"
+    },
+    {
+      "question": "回归鉴定师需要满足哪些条件？",
+      "expected_points": [
+        "连续离线天数≥14天",
+        "猎人等级大于10级",
+        "完成主线第一章剧情委托「生意经与招财宝」"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gameevent/20260706/263032.html"
+      ],
+      "category": "活动",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q018"
+    }
+  ]
+}

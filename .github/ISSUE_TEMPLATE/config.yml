@@ -1,0 +1,6 @@
+blank_issues_enabled: true
+# 不配置 contact_links：GitHub 要求每一条都带可访问的 url。
+# 相关材料都在仓库内：
+#   SECURITY.md      安全问题走私密渠道上报（不要开公开 issue）
+#   CONTRIBUTING.md  开发环境搭建、quality_check.py 必须「失败 0」、PR 清单
+#   eval/README.md   评测集的构成、运行方式与结果解读

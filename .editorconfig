@@ -1,0 +1,34 @@
+# EditorConfig：https://editorconfig.org
+# 与仓库根的 .gitattributes（`* text=auto eol=lf`）一致：
+# 文本文件统一 LF，二进制文件不参与换行与末尾换行处理。
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# 前端与配置：现有文件是 2 空格缩进（app/web/*.js、*.css、*.html、seed/*.json）
+[*.{js,css,html,json}]
+indent_size = 2
+
+# Markdown：行尾两个空格是有意义的硬换行，不裁剪
+[*.md]
+trim_trailing_whitespace = false
+
+# PowerShell 脚本必须是 UTF-8 带 BOM。Windows PowerShell 5.1 对无 BOM 的文件按 ANSI
+# 解码，中文注释会吃掉字符串引号、脚本直接语法错误；tools/quality_check.py【22】用字节
+# EF BB BF 核对 tools/build_exe.ps1 与 tools/verify_exe.ps1，因此这是硬要求，不是偏好。
+[*.{ps1,psm1}]
+charset = utf-8-bom
+end_of_line = lf
+
+# 二进制文件（与 .gitattributes 里标记为 binary 的后缀一致）不做文本层面的
+# 换行与末尾换行处理
+[*.{png,jpg,jpeg,gif,webp,bmp,ico,exe,dll,pyd,zip,7z,db,woff,woff2,ttf,otf}]
+insert_final_newline = false
+trim_trailing_whitespace = false

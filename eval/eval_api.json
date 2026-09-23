@@ -1,0 +1,370 @@
+{
+  "version": 1,
+  "generated_at": "2026-09-22T04:04:47",
+  "note": "结构化字段专项题集：21 道题，取材于 BWIKI 页面模板原文，考察模板字段（配音、生日、基础数值、弧盘分类与效果数值等）的抽取质量。expected_points 逐字读自缓存原文，不由模型生成；expected_sources 给出该字段所在的 BWIKI 页面。build_eval_set.py 出题时以基线种子做区分度守卫，答案已存在于知识库的题会被剔除。review.status 记录审核状态：pending 为自动生成、尚未审核，ok 为已确认题目与要点正确，fixed 为审核中修正过要点、来源或标签，drop 为剔除、不参与评测。review.comment 记录该题的复核结论与理由。审核结果只写进 review 的两个字段：JSON 不支持注释，写在结构外面会让文件无法解析。",
+  "items": [
+    {
+      "question": "角色「九原」的中文配音（CV）是谁？",
+      "expected_points": [
+        "张安琪"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E4%B9%9D%E5%8E%9F"
+      ],
+      "category": "角色",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "fixed",
+        "comment": "复核结论（2026-09-22）：中配张安琪、日配田中理惠，经萌娘百科与百度百科交叉验证。BWIKI 模板里的「宋媛媛」是残留/错位（与娜娜莉撞值），已由 tools/manual_facts.py 更正。"
+      },
+      "id": "api001"
+    },
+    {
+      "question": "角色「九原」的基础攻击是多少？",
+      "expected_points": [
+        "327"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E4%B9%9D%E5%8E%9F"
+      ],
+      "category": "角色",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api002"
+    },
+    {
+      "question": "角色「九原」的基础生命是多少？",
+      "expected_points": [
+        "5846"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E4%B9%9D%E5%8E%9F"
+      ],
+      "category": "角色",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api003"
+    },
+    {
+      "question": "角色「哈尼娅」的生日是什么时候？",
+      "expected_points": [
+        "3月27日"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E5%93%88%E5%B0%BC%E5%A8%85"
+      ],
+      "category": "角色",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api004"
+    },
+    {
+      "question": "角色「哈尼娅」的配音（CV）是谁？",
+      "expected_points": [
+        "苏子芜"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E5%93%88%E5%B0%BC%E5%A8%85"
+      ],
+      "category": "角色",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api005"
+    },
+    {
+      "question": "角色「哈索尔」的生日是什么时候？",
+      "expected_points": [
+        "8月29日"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E5%93%88%E7%B4%A2%E5%B0%94"
+      ],
+      "category": "角色",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api006"
+    },
+    {
+      "question": "角色「哈索尔」的配音（CV）是谁？",
+      "expected_points": [
+        "洪海天"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E5%93%88%E7%B4%A2%E5%B0%94"
+      ],
+      "category": "角色",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api007"
+    },
+    {
+      "question": "角色「埃德嘉」的生日是什么时候？",
+      "expected_points": [
+        "10月7日"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E5%9F%83%E5%BE%B7%E5%98%89"
+      ],
+      "category": "角色",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api008"
+    },
+    {
+      "question": "角色「埃德嘉」的配音（CV）是谁？",
+      "expected_points": [
+        "四白"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E5%9F%83%E5%BE%B7%E5%98%89"
+      ],
+      "category": "角色",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api009"
+    },
+    {
+      "question": "角色「娜娜莉」的配音（CV）是谁？",
+      "expected_points": [
+        "宋媛媛"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E5%A8%9C%E5%A8%9C%E8%8E%89"
+      ],
+      "category": "角色",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "fixed",
+        "comment": "复核结论（2026-09-22）：中配宋媛媛、日配竹达彩奈，两者各自正确（与九原不再是「撞值」）。答案已由 tools/manual_facts.py 的 FACT_UPDATES 补全为「宋媛媛（中）/竹达彩奈（日）」。"
+      },
+      "id": "api010"
+    },
+    {
+      "question": "弧盘「「我们。」」的适用分类是什么？",
+      "expected_points": [
+        "等离子"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E3%80%8C%E6%88%91%E4%BB%AC%E3%80%82%E3%80%8D"
+      ],
+      "category": "弧盘",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api011"
+    },
+    {
+      "question": "弧盘「「我们。」」的效果描述里提到了哪些数值？",
+      "expected_points": [
+        "12.00%"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E3%80%8C%E6%88%91%E4%BB%AC%E3%80%82%E3%80%8D"
+      ],
+      "category": "弧盘",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api012"
+    },
+    {
+      "question": "弧盘「「最后一朵玫瑰」」的适用分类是什么？",
+      "expected_points": [
+        "液态"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E3%80%8C%E6%9C%80%E5%90%8E%E4%B8%80%E6%9C%B5%E7%8E%AB%E7%91%B0%E3%80%8D"
+      ],
+      "category": "弧盘",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api013"
+    },
+    {
+      "question": "弧盘「「最后一朵玫瑰」」的效果描述里提到了哪些数值？",
+      "expected_points": [
+        "14.00%",
+        "6.00%",
+        "3秒"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E3%80%8C%E6%9C%80%E5%90%8E%E4%B8%80%E6%9C%B5%E7%8E%AB%E7%91%B0%E3%80%8D"
+      ],
+      "category": "弧盘",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api014"
+    },
+    {
+      "question": "弧盘「「电音」狂欢」的适用分类是什么？",
+      "expected_points": [
+        "液态"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E3%80%8C%E7%94%B5%E9%9F%B3%E3%80%8D%E7%8B%82%E6%AC%A2"
+      ],
+      "category": "弧盘",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api015"
+    },
+    {
+      "question": "弧盘「「电音」狂欢」的效果描述里提到了哪些数值？",
+      "expected_points": [
+        "12.00%"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E3%80%8C%E7%94%B5%E9%9F%B3%E3%80%8D%E7%8B%82%E6%AC%A2"
+      ],
+      "category": "弧盘",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api016"
+    },
+    {
+      "question": "弧盘「「银河暂留」」的适用分类是什么？",
+      "expected_points": [
+        "等离子"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E3%80%8C%E9%93%B6%E6%B2%B3%E6%9A%82%E7%95%99%E3%80%8D"
+      ],
+      "category": "弧盘",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api017"
+    },
+    {
+      "question": "弧盘「「银河暂留」」的获取途径是什么？",
+      "expected_points": [
+        "签到10天送"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E3%80%8C%E9%93%B6%E6%B2%B3%E6%9A%82%E7%95%99%E3%80%8D"
+      ],
+      "category": "弧盘",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api018"
+    },
+    {
+      "question": "弧盘「「银河暂留」」的效果描述里提到了哪些数值？",
+      "expected_points": [
+        "12.00%",
+        "2.00%",
+        "5秒"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E3%80%8C%E9%93%B6%E6%B2%B3%E6%9A%82%E7%95%99%E3%80%8D"
+      ],
+      "category": "弧盘",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api019"
+    },
+    {
+      "question": "弧盘「不屈之绵」的适用分类是什么？",
+      "expected_points": [
+        "等离子"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E4%B8%8D%E5%B1%88%E4%B9%8B%E7%BB%B5"
+      ],
+      "category": "弧盘",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api020"
+    },
+    {
+      "question": "弧盘「不屈之绵」的效果描述里提到了哪些数值？",
+      "expected_points": [
+        "22.00%",
+        "50%",
+        "28.00%"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/%E4%B8%8D%E5%B1%88%E4%B9%8B%E7%BB%B5"
+      ],
+      "category": "弧盘",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+      },
+      "id": "api021"
+    }
+  ]
+}

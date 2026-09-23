@@ -1,0 +1,79 @@
+# ---- 机密：绝不提交 ----
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+secrets.json
+config.local.json
+
+# ---- 构建与运行时数据（含用户 API Key 密文）----
+data/
+dist/
+dist_*/
+build/
+build_*/
+*.spec
+!NTE-RAG.spec
+!NTE-RAG-onedir.spec
+.verify/
+.entrytest/
+.wintest/
+.dlltest/
+
+# ---- 开发环境 ----
+.venv/
+venv/
+piptmp/
+.sdist_tmp/
+# 本地归档：死文件与历史快照，只留在这台机器上
+.archive/
+
+# ---- 一次性临时物：数据核对、探针、自检产物（跑完即删，不必提交）----
+.tmp/
+.task1/
+.consistency/
+.dedupe/
+.seed_after_ruling/
+.eval_data*/
+.eval_*/
+.quality_check_*/
+.field_report/
+.seed_check/
+.selftest_data/
+.build_selftest/
+.seed_build/
+.eval_data/
+.quality_check/
+.probe/
+.official_*
+.spotcheck*
+.birthday_audit*
+.scratch*
+.audit/
+.audit_*
+.probe_manual*
+.dirty_audit*
+.mint_page*
+.gap_probe*
+.spec_probe*
+.probe_*
+# 截图工具（tools/make_readme_shots.py）的临时库、浏览器配置与草稿图
+.shots/
+# 版本资源由 tools/make_version_info.py 在构建时生成（版本号取自 app/__init__.py）；
+# 不提交写死的副本，避免和代码里的版本号不一致。
+assets/version_info.txt
+__pycache__/
+*.py[cod]
+*.db
+*.sqlite
+*.sqlite3
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.idea/
+.vscode/
+*.log
+
+# 评测：题目集要提交（需要人工审核），报告是运行产物不必提交
+eval/report*.json

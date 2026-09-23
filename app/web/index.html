@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark light" />
+<meta name="theme-color" content="#0d1017" />
+<meta name="description" content="《异环》本地知识库助手：先查本地资料，资料不足时自动联网抓取并写回知识库。" />
+<!-- 站点图标：内联 SVG（纯代码生成，不引入任何图片素材，离线可用） -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%232b6df6'/%3E%3Cstop offset='1' stop-color='%237ee0c0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='14' fill='%2308111f'/%3E%3Ccircle cx='32' cy='32' r='14' fill='none' stroke='url(%23g)' stroke-width='4.5' stroke-dasharray='58 14' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='32' r='5' fill='url(%23g)'/%3E%3C/svg%3E" />
+<title>异环 RAG 知识助手</title>
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+
+<!-- ============ 图标集（内联 SVG sprite：无外部依赖、无授权问题） ============ -->
+<svg class="sprite" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M20.5 12.2c0 4.1-3.8 7.4-8.5 7.4-1 0-2-.15-2.9-.43L5 21.6l1.2-3.7a7.1 7.1 0 0 1-2.7-5.7C3.5 8.1 7.3 4.8 12 4.8s8.5 3.3 8.5 7.4z"/></symbol>
+  <symbol id="i-db" viewBox="0 0 24 24"><ellipse cx="12" cy="6.2" rx="7.2" ry="3"/><path d="M4.8 6.2v5.6c0 1.7 3.2 3 7.2 3s7.2-1.3 7.2-3V6.2"/><path d="M4.8 11.8v5.6c0 1.7 3.2 3 7.2 3s7.2-1.3 7.2-3v-5.6"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20.2 11.9a8.3 8.3 0 1 1-2.7-6.1"/><path d="M20.6 4.1v5.2h-5.2"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M4 8h8.6M17.4 8H20M4 16h2.6M11.4 16H20"/><circle cx="15" cy="8" r="2.3"/><circle cx="9" cy="16" r="2.3"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M12 11.2v5.2"/><path d="M12 7.7h.01"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M21 3.6 10.6 14M21 3.6l-6.4 17-3.9-6.9L3.6 9.9z"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.4"/><path d="M15.7 15.7 20.6 20.6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5.4v13.2M5.4 12h13.2"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4.8 7h14.4M9.4 7V4.9h5.2V7M6.6 7l.9 12.1h9L17.4 7"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v10.6M8.2 10.9 12 14.7l3.8-3.8M5 19.2h14"/></symbol>
+  <symbol id="i-plug" viewBox="0 0 24 24"><path d="M9 3.4v5M15 3.4v5M6.4 8.4h11.2v3.2a5.6 5.6 0 0 1-11.2 0z"/><path d="M12 17.2v3.4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M4.8 12.6 9.6 17.4 19.2 6.8"/></symbol>
+  <symbol id="i-warn" viewBox="0 0 24 24"><path d="M12 4.1 21 19.5H3z"/><path d="M12 9.9v4.2M12 16.8h.01"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7.2 4.8 18.8 12 7.2 19.2z"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6.6" y="6.6" width="10.8" height="10.8" rx="2.2"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="11" height="11" rx="2.2"/><path d="M15 6.4V5.4A1.4 1.4 0 0 0 13.6 4H5.4A1.4 1.4 0 0 0 4 5.4v8.2A1.4 1.4 0 0 0 5.4 15h1"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.6" y="5" width="16.8" height="14" rx="2.2"/><circle cx="8.7" cy="9.8" r="1.6"/><path d="M4.6 16.8 9.8 12l3.3 3 2.6-2.2 3.5 3.2"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M10.4 13.6a3.7 3.7 0 0 0 5.2 0l2.6-2.6a3.7 3.7 0 0 0-5.2-5.2l-1.3 1.3"/><path d="M13.6 10.4a3.7 3.7 0 0 0-5.2 0l-2.6 2.6a3.7 3.7 0 0 0 5.2 5.2l1.3-1.3"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.4V12l3.2 2"/></symbol>
+  <symbol id="i-theme" viewBox="0 0 24 24"><path d="M20 14.6A8.4 8.4 0 0 1 9.4 4 8.6 8.6 0 1 0 20 14.6z"/></symbol>
+  <symbol id="i-key" viewBox="0 0 24 24"><circle cx="8.2" cy="15.8" r="3.6"/><path d="M10.8 13.2 19 5M16 8l2.2 2.2M13.4 10.6l2.2 2.2"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.4" width="14" height="9.6" rx="2.2"/><path d="M8.4 10.4V8a3.6 3.6 0 0 1 7.2 0v2.4"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M13.4 3.6H7a1.8 1.8 0 0 0-1.8 1.8v13.2A1.8 1.8 0 0 0 7 20.4h10a1.8 1.8 0 0 0 1.8-1.8V9z"/><path d="M13.4 3.6V9h5.4"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M10.4 5.6 4.6 11.4l5.8 5.8"/><path d="M4.6 11.4h9.2a5.6 5.6 0 0 1 0 11.2h-1.4"/></symbol>
+</svg>
+
+<!-- ============ 背景氛围层（纯 CSS/SVG 生成，不加载任何图片） ============ -->
+<div class="bg" aria-hidden="true">
+  <div class="bg-glow"></div>
+  <div class="bg-grid"></div>
+  <div class="bg-noise"></div>
+</div>
+<!-- 壁纸层：模糊铺底 + 前景完整图，两层都由 JS 写入 --wp-image 驱动。
+     图片比例与窗口不一致时（竖图、超宽图），前景用 contain 保证整张可见，
+     空出来的部分由模糊铺底填满，不会出现大片纯色空白，也不会把图裁掉。 -->
+<div class="wallpaper" id="wallpaper-layer" aria-hidden="true">
+  <div class="wp-fill"></div>
+  <div class="wp-img"></div>
+</div>
+
+<div id="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">
+        <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="brand-g" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#2b6df6" />
+              <stop offset="1" stop-color="#7ee0c0" />
+            </linearGradient>
+          </defs>
+          <circle cx="32" cy="32" r="15" fill="none" stroke="url(#brand-g)" stroke-width="4.5"
+                  stroke-dasharray="62 14" stroke-linecap="round" />
+          <circle cx="32" cy="32" r="5.4" fill="url(#brand-g)" />
+          <circle cx="47.5" cy="15.5" r="3.2" fill="url(#brand-g)" />
+        </svg>
+      </span>
+      <div>
+        <div class="title">异环 RAG 知识助手</div>
+        <div class="subtitle" id="version-line">本地知识库 · 自动联网更新</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <div class="status-pills" id="status-pills"></div>
+      <button class="ghost" id="theme-toggle" aria-label="切换主题" title="切换主题：暗色 / 亮色 / 跟随系统">
+        <svg class="i" aria-hidden="true"><use href="#i-theme" /></svg>
+      </button>
+    </div>
+  </header>
+
+  <nav class="tabs" id="tabs" role="tablist" aria-label="功能导航">
+    <button class="tab active" data-tab="chat" id="tab-chat" role="tab" aria-selected="true" aria-controls="panel-chat">
+      <svg class="i tab-icon" aria-hidden="true"><use href="#i-chat" /></svg><span class="tab-label">问答</span>
+    </button>
+    <button class="tab" data-tab="kb" id="tab-kb" role="tab" aria-selected="false" aria-controls="panel-kb">
+      <svg class="i tab-icon" aria-hidden="true"><use href="#i-db" /></svg><span class="tab-label">知识库</span>
+    </button>
+    <button class="tab" data-tab="update" id="tab-update" role="tab" aria-selected="false" aria-controls="panel-update">
+      <svg class="i tab-icon" aria-hidden="true"><use href="#i-refresh" /></svg><span class="tab-label">自动更新</span>
+    </button>
+    <button class="tab" data-tab="settings" id="tab-settings" role="tab" aria-selected="false" aria-controls="panel-settings">
+      <svg class="i tab-icon" aria-hidden="true"><use href="#i-settings" /></svg><span class="tab-label">设置</span>
+    </button>
+    <button class="tab" data-tab="about" id="tab-about" role="tab" aria-selected="false" aria-controls="panel-about">
+      <svg class="i tab-icon" aria-hidden="true"><use href="#i-info" /></svg><span class="tab-label">关于</span>
+    </button>
+  </nav>
+
+  <main>
+    <!-- ============ 问答 ============ -->
+    <section class="panel active" id="panel-chat" role="tabpanel" aria-labelledby="tab-chat">
+      <div class="chat-wrap">
+        <div class="chat-log" id="chat-log" role="log" aria-live="polite" aria-label="对话记录">
+          <div class="bubble assistant">
+            <div class="bubble-body">
+              <p>你好，我是《异环》资料助手。</p>
+              <p>我会先查本地知识库；资料不够时会自动联网抓取并写回知识库。
+                 答案里带 <span class="cite-chip">[1]</span> 的编号对应下方的来源。</p>
+              <p class="hint" id="first-run-hint"></p>
+              <!-- 推荐问题由 app.js 的 renderStarterAsks() 从知识库推导（版本号跟着知识库走，不会写死后过期）；
+                   这里只是知识库为空或接口失败时的兜底，所以刻意不含版本号 -->
+              <div class="chips" id="starter-asks">
+                <button class="chip" data-ask="异环的全平台公测是什么时候开启的？">公测时间</button>
+                <button class="chip" data-ask="游戏里有哪些可操作角色？">角色一览</button>
+                <button class="chip" data-ask="异环最近一次版本更新了什么内容？">最新版本</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="chat-input">
+          <textarea id="question" rows="2" maxlength="4000" placeholder="问点什么，例如：异环里薄荷是谁？她的技能是什么？（Enter 发送，Shift+Enter 换行）"></textarea>
+          <div class="chat-controls">
+            <div class="row">
+              <label class="switch"><input type="checkbox" id="allow-web" checked /> 资料不足时自动联网</label>
+              <span class="phase hidden" id="chat-phase"><span class="dot"></span><span id="chat-phase-text">正在检索…</span></span>
+            </div>
+            <div class="row">
+              <button id="stop-btn" class="hidden">
+                <svg class="i" aria-hidden="true"><use href="#i-stop" /></svg>停止
+              </button>
+              <button class="primary" id="send-btn">
+                <svg class="i" aria-hidden="true"><use href="#i-send" /></svg>发送
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 知识库 ============ -->
+    <section class="panel" id="panel-kb" role="tabpanel" aria-labelledby="tab-kb">
+      <div class="grid-stats" id="kb-stats"></div>
+      <div class="card">
+        <div class="card-head">
+          <h3>知识条目（facts）</h3>
+          <div class="row">
+            <input id="fact-search" placeholder="搜索标题 / 内容 / 标签" />
+            <select id="fact-status">
+              <option value="">全部状态</option>
+              <option value="active">生效中</option>
+              <option value="conflict">存在冲突</option>
+              <option value="superseded">已被取代</option>
+            </select>
+            <button id="fact-refresh">
+              <svg class="i" aria-hidden="true"><use href="#i-refresh" /></svg>刷新
+            </button>
+            <button class="primary" id="fact-add-toggle">
+              <svg class="i" aria-hidden="true"><use href="#i-plus" /></svg>手动添加
+            </button>
+          </div>
+        </div>
+        <div id="fact-editor" class="editor hidden">
+          <input id="fact-title" placeholder="标题（简短）" />
+          <input id="fact-topic" placeholder="主题分类，例如：角色-薄荷" />
+          <input id="fact-tags" placeholder="标签，逗号分隔" />
+          <textarea id="fact-answer" rows="3" placeholder="内容（一句完整的事实陈述）"></textarea>
+          <div class="row">
+            <button class="primary" id="fact-save">
+              <svg class="i" aria-hidden="true"><use href="#i-check" /></svg>保存
+            </button>
+            <button id="fact-cancel">取消</button>
+          </div>
+        </div>
+        <div class="list" id="fact-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h3>原始资料（documents）</h3>
+          <div class="row">
+            <input id="doc-search" placeholder="搜索标题 / 网址" />
+            <button id="doc-refresh">
+              <svg class="i" aria-hidden="true"><use href="#i-refresh" /></svg>刷新
+            </button>
+            <button id="kb-export">
+              <svg class="i" aria-hidden="true"><use href="#i-download" /></svg>导出 JSON
+            </button>
+          </div>
+        </div>
+        <div class="list" id="doc-list"></div>
+      </div>
+    </section>
+
+    <!-- ============ 自动更新 ============ -->
+    <section class="panel" id="panel-update" role="tabpanel" aria-labelledby="tab-update">
+      <div class="card">
+        <div class="card-head">
+          <h3>更新状态</h3>
+          <div class="row">
+            <button class="primary" id="update-run">
+              <svg class="i" aria-hidden="true"><use href="#i-play" /></svg>立即更新
+            </button>
+            <label class="switch"><input type="checkbox" id="update-enabled" /> 启用定时更新</label>
+          </div>
+        </div>
+        <div id="update-summary" class="muted">尚未运行</div>
+        <pre class="log" id="update-log"></pre>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>更新主题</h3>
+          <span class="muted small">系统会按这些关键词联网搜索、抓取并抽取知识条目</span>
+        </div>
+        <div class="row">
+          <input id="topic-input" placeholder="例如：异环 1.2 版本 新角色" />
+          <button class="primary" id="topic-add">
+            <svg class="i" aria-hidden="true"><use href="#i-plus" /></svg>添加
+          </button>
+        </div>
+        <div class="chips" id="topic-chips"></div>
+        <h4 class="sub">自动入队（来自答不上来的问题）</h4>
+        <div class="list compact" id="topic-queue"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>来源黑名单</h3>
+          <span class="muted small">命中的域名不会被搜索、抓取或入库</span>
+        </div>
+        <p class="muted small">
+          一行一个域名，也可以直接粘贴网址（会自动提取域名）。用于屏蔽已知存在事实污染或质量差的站点。
+          典型例子：<code>9game.cn</code>（实测其攻略把《异环》与其它游戏的角色混为一谈）。
+        </p>
+        <textarea id="blocked-domains" rows="4"
+                  placeholder="example.com&#10;https://bad-site.cn/some/page"></textarea>
+        <div class="row">
+          <button class="primary" id="blocked-save">
+            <svg class="i" aria-hidden="true"><use href="#i-check" /></svg>保存黑名单
+          </button>
+          <span class="muted small">当前生效 <b id="blocked-count">0</b> 个域名</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>内置数据源</h3>
+          <div class="row">
+            <button id="sources-refresh">
+              <svg class="i" aria-hidden="true"><use href="#i-refresh" /></svg>刷新列表
+            </button>
+            <button class="primary" id="sources-run">
+              <svg class="i" aria-hidden="true"><use href="#i-download" /></svg>抓取选中数据源
+            </button>
+          </div>
+        </div>
+        <p class="muted small">
+          全部为服务端渲染页面或公开 API，不含需要浏览器渲染的站点；抓取会遵守各站 robots.txt。
+          首次使用建议先跑一次「官网 + WIKI」把种子资料补齐。
+        </p>
+        <p class="source-policy" id="source-policy">
+          <b>来源可靠性说明（2026-09-21 人工审核裁定）：</b>
+          BWIKI 异环 wiki 目前处于<b>施工中</b>、编辑无 24 小时审核 —— 该站事实统一标
+          「施工中/可靠性待确认」，生命/攻击等<b>数值字段不跨源比对</b>，一旦冲突只做字段级存疑，
+          待施工结束后抽样复核；官网「角色介绍」类纯叙事文本单列为「叙事/世界观来源」，
+          只用于世界观、剧情与角色背景问答，<b>不参与任何数值/字段投票</b>，引用时会标注来源类型。
+        </p>
+        <div class="list" id="source-list"></div>
+        <p class="muted small" id="source-note">
+          想补充内置目录之外的资料，用上面「更新主题」的关键词队列（联网搜索后自动入库），
+          或在「知识库」页「手动添加」条目 —— 内置目录只保留经过可爬性验证与来源分级的站点。
+        </p>
+      </div>
+    </section>
+
+    <!-- ============ 设置 ============ -->
+    <section class="panel" id="panel-settings" role="tabpanel" aria-labelledby="tab-settings">
+      <div class="card">
+        <div class="card-head"><h3>模型 API（可选）</h3></div>
+        <p class="muted small">
+          只需要两步：<b>选服务商</b> → <b>粘贴 API Key</b>。Base URL 会自动填好，不用记也不用查。<br />
+          密钥只保存在你自己的电脑上（Windows DPAPI 加密），不会上传到任何服务器；界面回显一律脱敏。<br />
+          不填也能用：程序会退化为「本地资料直出」，只展示检索到的原文片段，不会凭空生成回答。
+        </p>
+        <div class="form-stack">
+          <label>服务商
+            <select id="llm-preset"></select>
+          </label>
+          <div class="hint-line" id="llm-preset-note"></div>
+
+          <label>API Key
+            <input id="llm-key" type="password" autocomplete="off"
+                   placeholder="把服务商控制台里的 Key 粘贴到这里；留空保存表示不修改已保存的 Key" />
+          </label>
+          <div class="hint-line" id="llm-key-state"></div>
+
+          <div class="row nowrap">
+            <label class="grow">模型名
+              <div class="combo">
+                <input id="llm-model" autocomplete="off"
+                       placeholder="先点右侧「拉取可用模型」，再从列表里选一个" />
+                <button type="button" class="combo-toggle" id="llm-model-toggle" title="展开模型列表">▾</button>
+                <div class="combo-list hidden" id="llm-model-list"></div>
+              </div>
+            </label>
+            <button id="llm-models" class="shrink">
+              <svg class="i" aria-hidden="true"><use href="#i-refresh" /></svg>拉取可用模型
+            </button>
+          </div>
+          <div class="hint-line" id="llm-model-note">
+            模型名会随服务商更新而变化，所以这里<b>不预填默认值</b>，请点「拉取可用模型」从真实列表里选。
+          </div>
+
+          <details class="advanced">
+            <summary>高级设置（Base URL / 温度 / 输出上限 / 超时）</summary>
+            <div class="form-grid">
+              <label>Base URL
+                <input id="llm-base" autocomplete="off"
+                       placeholder="正常情况下不用改；只有用中转站或自建网关时才需要" />
+              </label>
+              <label>温度<input id="llm-temp" type="number" step="0.1" min="0" max="2" /></label>
+              <label>最大输出 tokens<input id="llm-maxtokens" type="number" min="256" max="32000" /></label>
+              <label>超时（秒）<input id="llm-timeout" type="number" min="10" max="600" /></label>
+            </div>
+            <p class="muted small">协议由服务商自动决定：<span id="llm-protocol-label">—</span></p>
+          </details>
+        </div>
+        <div class="row">
+          <button class="primary" id="llm-save">
+            <svg class="i" aria-hidden="true"><use href="#i-check" /></svg>保存设置
+          </button>
+          <button id="llm-test">
+            <svg class="i" aria-hidden="true"><use href="#i-plug" /></svg>测试连接
+          </button>
+        </div>
+        <pre class="log small hidden" id="llm-test-result"></pre>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>界面与外观</h3></div>
+        <p class="muted small">
+          主题立即生效并记住选择。壁纸只读取你自己电脑上的图片——程序不分发、不上传任何图片素材。
+        </p>
+        <div class="row nowrap">
+          <span class="muted small">主题</span>
+          <div class="seg" id="theme-seg" role="group" aria-label="主题">
+            <button data-theme-opt="dark">暗色</button>
+            <button data-theme-opt="light">亮色</button>
+            <button data-theme-opt="system">跟随系统</button>
+          </div>
+        </div>
+        <div class="row nowrap">
+          <button class="ghost" id="wizard-reopen">
+            <svg class="i" aria-hidden="true"><use href="#i-plug" /></svg>重新打开配置向导
+          </button>
+          <span class="muted small">忘了怎么配？向导会带你选服务商 → 填 Key → 拉模型 → 测连通。</span>
+        </div>
+        <details class="advanced">
+          <summary>壁纸（高级，默认关闭）</summary>
+          <p class="muted small">
+            选择一张本地图片作为界面背景，仅在<b>你自己的电脑上</b>显示；程序不会上传它，也不会把它打进分发包。
+          </p>
+          <div class="row">
+            <button id="wp-pick">
+              <svg class="i" aria-hidden="true"><use href="#i-image" /></svg>选择图片
+            </button>
+            <input type="file" id="wp-file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp" class="hidden" />
+            <button id="wp-clear" class="danger">
+              <svg class="i" aria-hidden="true"><use href="#i-trash" /></svg>清除壁纸
+            </button>
+            <label class="switch inline"><input type="checkbox" id="wp-enabled" /> 启用壁纸</label>
+            <span class="muted small" id="wp-state">未设置</span>
+          </div>
+          <div class="slider-row">
+            <label for="wp-dim">背景压暗</label>
+            <input type="range" id="wp-dim" min="0" max="0.9" step="0.05" value="0.6" />
+            <span class="mono small" id="wp-dim-value">60%</span>
+          </div>
+          <div class="slider-row">
+            <span>背景适配</span>
+            <div class="seg" id="wp-fit">
+              <button type="button" data-fit="contain" class="active">完整显示（推荐）</button>
+              <button type="button" data-fit="cover">铺满裁切</button>
+            </div>
+          </div>
+          <p class="muted small">
+            「完整显示」会把整张图放进窗口，比例不匹配的空白处用同图模糊铺底补满，不会裁掉画面；
+            「铺满裁切」则填满窗口、但会裁掉超出部分（竖图与超宽图尤其明显）。
+          </p>
+          <div class="wp-preview" id="wp-preview"></div>
+        </details>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>联网搜索</h3></div>
+        <div class="form-grid">
+          <label>搜索源
+            <select id="search-provider">
+              <option value="bocha">博查 Bocha（国内可直连，推荐）</option>
+              <option value="tavily">Tavily（需可访问海外）</option>
+              <option value="serper">Serper / Google（需可访问海外）</option>
+              <option value="duckduckgo">DuckDuckGo（免 Key）</option>
+              <option value="bing">必应网页（免 Key）</option>
+              <option value="auto">自动选择</option>
+            </select>
+          </label>
+          <label>博查 API Key<input id="search-bocha" type="password" placeholder="留空表示不修改" /></label>
+          <label>Tavily API Key<input id="search-tavily" type="password" placeholder="留空表示不修改" /></label>
+          <label>Serper API Key<input id="search-serper" type="password" placeholder="留空表示不修改" /></label>
+          <label>单次结果数<input id="search-max" type="number" min="3" max="20" /></label>
+          <label class="switch inline"><input type="checkbox" id="search-fallback" /> 主源失败时使用免 Key 源兜底</label>
+        </div>
+        <div class="row">
+          <button class="primary" id="search-save">
+            <svg class="i" aria-hidden="true"><use href="#i-check" /></svg>保存设置
+          </button>
+          <button id="search-test">
+            <svg class="i" aria-hidden="true"><use href="#i-search" /></svg>测试搜索
+          </button>
+        </div>
+        <pre class="log small hidden" id="search-test-result"></pre>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>回答与知识库</h3></div>
+        <div class="form-grid">
+          <label class="switch inline"><input type="checkbox" id="answer-auto-web" /> 本地资料不足时自动联网</label>
+          <label>联网触发阈值<input id="answer-threshold" type="number" step="0.05" min="0" max="1" /></label>
+          <label>单次最多抓取页数<input id="answer-maxpages" type="number" min="1" max="10" /></label>
+          <label>检索条数 top_k<input id="kb-topk" type="number" min="3" max="30" /></label>
+          <label>切片长度<input id="kb-chunksize" type="number" min="200" max="2000" /></label>
+          <label>切片重叠<input id="kb-overlap" type="number" min="0" max="500" /></label>
+          <label class="switch inline"><input type="checkbox" id="auto-enabled" /> 启用自动更新</label>
+          <label class="switch inline"><input type="checkbox" id="auto-startup" /> 启动时更新一次</label>
+          <label>更新间隔（小时）<input id="auto-interval" type="number" min="1" max="720" /></label>
+          <label>单轮最多抓取页数<input id="auto-maxpages" type="number" min="1" max="200" /></label>
+          <label>单轮最多主题数<input id="auto-maxtopics" type="number" min="1" max="30" /></label>
+        </div>
+        <h4 class="sub">数据质量</h4>
+        <div class="form-grid">
+          <label class="switch inline"><input type="checkbox" id="q-boilerplate" />
+            过滤模板噪声（扫码关注 / 免责声明 / 下载引导等）</label>
+          <label class="switch inline"><input type="checkbox" id="q-foreign" />
+            拒绝跨作品污染（攻略里混入其它游戏的角色名）</label>
+          <label class="switch inline"><input type="checkbox" id="q-official" />
+            官方来源优先（与社区来源冲突时官方自动胜出，不调用模型）</label>
+          <label>正文最短字数<input id="q-minchars" type="number" min="50" max="2000" /></label>
+          <label>信息密度下限<input id="q-density" type="number" step="0.05" min="0" max="1" /></label>
+        </div>
+        <p class="muted small">
+          关闭「官方优先」后，来源冲突一律交给模型裁决（更慢、更贵，但不会因来源等级直接丢弃信息）。
+        </p>
+        <div class="row">
+          <button class="primary" id="misc-save">
+            <svg class="i" aria-hidden="true"><use href="#i-check" /></svg>保存设置
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 关于 ============ -->
+    <section class="panel" id="panel-about" role="tabpanel" aria-labelledby="tab-about">
+      <div class="card disclaimer">
+        <div class="card-head">
+          <h3><svg class="i" aria-hidden="true"><use href="#i-info" /></svg>非官方粉丝工具</h3>
+        </div>
+        <p>
+          本程序是<b>玩家自制的非官方资料工具</b>，与《异环》的开发商、发行商及任何官方团队<b>没有隶属或合作关系</b>，
+          也不代表官方立场。程序中的资料来自公开可访问的网页，并标注来源链接，版权归原作者所有。
+        </p>
+        <ul class="bullets">
+          <li>所有游戏内容（版本、数值、活动时间等）<b>以游戏内与官方公告为准</b>；本工具的资料可能过时或存在错漏。</li>
+          <li>回答由本地知识库检索 + 你配置的模型生成，<b>可能出错</b>，重要信息请点开来源链接自行核对。</li>
+          <li>程序内不包含任何官方美术素材（立绘、LOGO、视频等）；界面图形全部由代码生成，站点图标同样为代码绘制。</li>
+          <li>壁纸功能只读取你自己电脑上的图片，不会上传，也不会随程序分发。</li>
+          <li>不提供游戏本体、下载、破解、代充或账号相关功能，也不收集任何个人信息。</li>
+        </ul>
+        <p class="muted small">
+          若你是权利方并认为某处内容不妥，请到项目仓库提 issue（仓库里有移除申请模板），
+          我们会先处理，再讨论细节。
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>这个程序能做什么</h3></div>
+        <p>
+          它是一本放在你自己电脑上的《异环》资料库：资料已经打包在程序里，不联网也能查；
+          不够用的时候再按需抓公开网页补上，并把抓到的原文存进本地库，下次直接用。
+        </p>
+        <ul class="bullets">
+          <li><b>问答</b>：直接问角色、剧情、地图、战斗、活动相关的问题，回答会附上来源链接，点开就能核对。</li>
+          <li><b>知识库</b>：分「知识条目」与「原始资料」两栏浏览已入库的内容，每条都能看到可信度、来源域名与抓取时间，
+            也可以手动补录一条，或删掉不需要的。</li>
+          <li><b>自动更新</b>：按主题抓公开网页补资料，能看到每轮更新报告，把不想再抓的站点加进来源黑名单。</li>
+          <li><b>设置</b>：接自己的模型 API、调检索与质量参数、换壁纸、安排自动更新计划。</li>
+          <li><b>内置资料</b>：8 个公开站点的 70 篇文档、685 条知识条目与 152 段原文摘录（2026-09 的快照）。
+            其中 1 篇已复核判为整页造假、导入时会被跳过，所以程序里实际看到的是 69 篇 / 150 段 / 682 条。</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>关于这个项目</h3></div>
+        <ul class="bullets">
+          <li><b>主要方向是「自带大模型 API」</b>：把你自己的模型服务接进来做《异环》问答。预置 17 家服务商，
+            也可以指向本机的 Ollama / LM Studio / vLLM，那样连模型调用都不出网；内置中文资料库是它的知识底座。
+            不配模型时程序退化为「本地资料直出」，只展示检索到的原文片段，那是备用路径。</li>
+          <li><b>作者单人维护的第一个开源项目</b>：issue 和 PR 都会看，但不承诺响应时间。</li>
+          <li><b>Windows 专用，资料只有中文</b>：原生窗口依赖 WebView2，打包脚本是 PowerShell；
+            内置来源与界面文案都以中文为主，英文提问能跑，但多半找不到可用资料。</li>
+          <li><b>开发过程用了 AI 编程助手</b>：DeepSeek Harness 配合 DeepSeek v4.1-Flash 参与了代码实现、
+            排查与文档整理；资料取舍与发布决定由作者负责。</li>
+          <li><b>欢迎反馈</b>：资料有错、来源失效、功能缺陷或纯粹是建议，都欢迎到项目仓库提 issue。</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>资料会过期</h3></div>
+        <ul class="bullets">
+          <li>内置资料是 <b>2026-09 的快照</b>，游戏更新后部分内容会滞后；个别来源也可能停更或下线。</li>
+          <li>条目上的可信度是算出来的（来源等级 / 提取方式 / 多源一致性 / 时效），<b>不是模型自评</b>。</li>
+          <li>抓不到页面或站点改版时，程序会<b>明确报错并写进更新报告</b>，不会编答案填空。</li>
+          <li>复核发现整页造假的来源会<b>按页面撤回</b>：它的原文切片与条目一起退出检索（记录留在库里备查），
+            所以答案里不会出现已经被推翻的说法。</li>
+          <li>版本、数值、活动时间一律以<b>游戏内与官方公告</b>为准，本工具的资料只作参考。</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>运行信息</h3></div>
+        <div id="about-paths" class="kv"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>你的数据在哪、会发给谁</h3></div>
+        <ul class="bullets">
+          <li><b>只在你自己的电脑上运行</b>：服务只监听 <code>127.0.0.1</code>，不对局域网或外网开放；每次启动换随机端口与一次性临时令牌。</li>
+          <li><b>你的 API Key 只在你本机</b>：用 Windows 自带的加密接口（DPAPI）保存，只有当前 Windows 账户能解开；界面回显一律打码（如 <code>sk-1****abcd</code>），日志里的密钥也会自动打码。</li>
+          <li><b>Key 只会发给你自己选的服务商</b>：问答时请求直接由你的电脑发往该服务商；本程序没有中转服务器，也不会把 Key 发给任何第三方。</li>
+          <li><b>没有统计与上报</b>：不收集使用数据、不做设备指纹，也没有崩溃上报。</li>
+          <li><b>抓取守规矩</b>：抓网页前先看目标站点的 <code>robots.txt</code>，被明确禁止的地址会跳过并在更新日志里写明原因；
+            站点没写（或只放了个空文件）就等于没有规则，按允许处理。字词/字典站与视频页在预置黑名单里，直接不抓；
+            社区来源的页面还要求标题或正文里出现主题词，免得抓回跟《异环》无关的内容。</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>便携使用</h3></div>
+        <p class="muted small">
+          在 exe 同目录放一个名为 <code>portable.flag</code> 的空文件，数据和知识库就会保存在该目录下的
+          <code>data</code> 文件夹里，整个文件夹拷到 U 盘即可带走（含已抓取的知识库）。
+          不放该文件时，若 exe 所在目录可写也会自动使用便携模式；否则回落到 <code>%APPDATA%\NTE-RAG</code>。
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-head"><h3>授权与许可</h3></div>
+        <ul class="bullets">
+          <li>程序代码是 <b>MIT 许可</b>（见仓库里的 <code>LICENSE</code>）；内置资料不在 MIT 范围内，授权口径见 <code>DATA_LICENSE.md</code>。</li>
+          <li>第三方依赖的许可与各来源站点的署名、免责声明见 <code>THIRD_PARTY_NOTICES.md</code>。</li>
+          <li>资料只摘录公开网页中与《异环》相关的内容，逐条标注来源链接，版权归原作者所有；
+            程序内不含官方美术素材，也不提供游戏本体、下载、破解、代充或账号相关功能。</li>
+        </ul>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ 首次使用向导 ============ -->
+  <div class="modal hidden" id="wizard" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
+    <div class="modal-card">
+      <div class="wizard-steps">
+        <div class="wizard-step active" data-step="1"><span class="n">1</span>选服务商</div>
+        <div class="wizard-step" data-step="2"><span class="n">2</span>填 Key</div>
+        <div class="wizard-step" data-step="3"><span class="n">3</span>选模型</div>
+        <div class="wizard-step" data-step="4"><span class="n">4</span>测试</div>
+      </div>
+      <h3 id="wizard-title">四步把模型接上</h3>
+      <p class="modal-sub">
+        Key 只保存在你自己的电脑上（Windows DPAPI 加密），不会上传。每一步都可以用「上一步」回去改，
+        现在跳过也没关系——不配模型也能先用本地知识库检索资料。
+      </p>
+
+      <div class="wizard-pane" data-pane="1">
+        <label>服务商
+          <select id="wizard-provider"></select>
+        </label>
+        <div class="hint-line" id="wizard-provider-note"></div>
+      </div>
+
+      <div class="wizard-pane hidden" data-pane="2">
+        <label>API Key
+          <input id="wizard-key" type="password" autocomplete="off" placeholder="把服务商控制台里的 Key 粘贴到这里" />
+        </label>
+        <div class="hint-line" id="wizard-key-note">只需要两步：选服务商 → 粘贴 Key，Base URL 会自动填好。</div>
+      </div>
+
+      <div class="wizard-pane hidden" data-pane="3">
+        <div class="row nowrap">
+          <label class="grow">模型名
+            <div class="combo">
+              <input id="wizard-model" autocomplete="off" placeholder="点右侧「拉取可用模型」，或手动填写" />
+              <button type="button" class="combo-toggle" id="wizard-model-toggle" title="展开模型列表">▾</button>
+              <div class="combo-list hidden" id="wizard-model-list"></div>
+            </div>
+          </label>
+          <button id="wizard-fetch" class="shrink">
+            <svg class="i" aria-hidden="true"><use href="#i-refresh" /></svg>拉取可用模型
+          </button>
+        </div>
+        <div class="hint-line" id="wizard-model-note"></div>
+      </div>
+
+      <div class="wizard-pane hidden" data-pane="4">
+        <pre class="log small" id="wizard-result">（还没测试）</pre>
+      </div>
+
+      <div class="modal-actions">
+        <button id="wizard-skip" class="ghost">以后再说</button>
+        <div class="actions-right">
+          <button id="wizard-back" class="hidden">
+            <svg class="i" aria-hidden="true"><use href="#i-back" /></svg>上一步
+          </button>
+          <button id="wizard-test">
+            <svg class="i" aria-hidden="true"><use href="#i-plug" /></svg>测试连接
+          </button>
+          <button class="primary" id="wizard-next">下一步</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 提示条：role="status" 让读屏也能听到「已保存 / 删除失败」这类反馈，
+       这些提示本身是可见文本，不需要再额外加 sr-only 的复述 -->
+  <div id="toast" class="toast hidden" role="status" aria-live="polite" aria-atomic="true"></div>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

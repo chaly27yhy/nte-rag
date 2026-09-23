@@ -1,0 +1,83 @@
+name: 质量自检
+
+on:
+  push:
+  pull_request:
+
+env:
+  # 这里只能放字面量：工作流级的 env 不支持 runner 上下文。
+  # 写成 ${{ runner.temp }} 会让 GitHub 判「Invalid workflow file」并拒绝整个工作流。
+  # 数据目录改在自检步骤里设置。
+  PYTHONIOENCODING: utf-8
+
+jobs:
+  quality-check:
+    name: 机制自检（Windows / Python ${{ matrix.python-version }}）
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12"]
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+
+      - name: 安装依赖
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: 密钥门禁（源码、.env 与两份打包脚本）
+        shell: pwsh
+        run: |
+          # 机制自检之外也要扫密钥：只跑 quality_check.py 时，误提交 .env、
+          # 把密钥写进源码、或往 .spec 里塞开发配置都不会让 CI 变红。
+          python.exe tools\secret_scan.py
+          if ($LASTEXITCODE -ne 0) {
+            throw "secret_scan.py 报告了疑似密钥泄漏（退出码 $LASTEXITCODE），已判定失败"
+          }
+
+      - name: 运行机制自检并核对输出
+        shell: pwsh
+        run: |
+          $dataDir = Join-Path $env:RUNNER_TEMP 'nte-rag-ci'
+          New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
+          $env:NTE_RAG_DATA_DIR = $dataDir
+          Write-Host "数据目录：$env:NTE_RAG_DATA_DIR"
+          python.exe tools\quality_check.py 2>&1 | Tee-Object -FilePath 'quality-check.log'
+          $code = $LASTEXITCODE
+          $text = Get-Content 'quality-check.log' -Raw -Encoding utf8
+          if ($code -ne 0) {
+            throw "自检进程退出码为 $code，判定失败"
+          }
+          if ($text -notmatch '共 \d+ 项：通过 \d+，失败 0') {
+            throw '输出里没有出现「... 项：通过 ...，失败 0」，可能存在静默跳过或输出被截断'
+          }
+          if ($text -notmatch '全部通过') {
+            throw '输出里没有出现「全部通过」'
+          }
+          # 断言总数随环境变化，刻意不写死：CI 是干净检出，没有 eval/report-*.json 和
+          # data/cache/wiki_api，依赖它们的那几十条断言会走 tools/quality_check.py 的
+          # skip()（不是失败），总数因此少于开发机。这里只要求「退出码 0 + 失败 0」，
+          # 再加一条下界防止整段被跳过导致「0 项也算通过」。
+          $total = [int][regex]::Match($text, '共 (\d+) 项').Groups[1].Value
+          if ($total -lt 500) {
+            throw "参与比对的断言只有 $total 项（少于 500），可能整段被跳过了"
+          }
+          $summary = [regex]::Match($text, '共 \d+ 项：通过 \d+，失败 \d+').Value
+          $skipCount = ([regex]::Matches($text, '跳过：')).Count
+          Write-Host "机制自检通过：$summary；另有 $skipCount 处未参与比对（依赖不入库的本地产物）"
+
+      - name: 保留自检日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-check-log
+          path: quality-check.log
+          if-no-files-found: ignore
+          retention-days: 7

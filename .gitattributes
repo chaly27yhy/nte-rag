@@ -1,0 +1,44 @@
+# 换行符与二进制属性。
+#
+# tools/build_exe.ps1 与 tools/verify_exe.ps1 必须是 UTF-8 带 BOM，且只在
+# Windows PowerShell 5.1 上运行：没有 BOM 时 5.1 按 ANSI 解码，中文注释会乱码，
+# 脚本直接语法错误。这两个文件的正文是 LF，所以这里统一钉 LF；保护中文的是 BOM，
+# 不是 CRLF，改成 CRLF 只会产生整文件级 diff。
+#
+# 文本文件统一 LF，避免不同操作系统带来的噪音。
+* text=auto eol=lf
+
+# Windows 脚本：LF + UTF-8 BOM（BOM 由 tools/quality_check.py【22】核对）
+*.ps1   text eol=lf
+*.psm1  text eol=lf
+*.psd1  text eol=lf
+*.bat   text eol=lf
+*.cmd   text eol=lf
+
+# 二进制文件不参与换行符转换，也不作为文本 diff
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.webp  binary
+*.bmp   binary
+*.ico   binary
+*.exe   binary
+*.dll   binary
+*.pyd   binary
+*.zip   binary
+*.7z    binary
+*.db    binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.otf   binary
+
+# 语言统计：种子数据不参与统计，否则仓库会显示成 100% JSON
+seed/*.json linguist-detectable=false
+eval/*.json linguist-detectable=false
+data/*.json linguist-detectable=false
+docs/screenshots/*.png linguist-documentation
+
+# 生成物：保留 diff，并标记为生成内容
+assets/version_info.txt linguist-generated=true

@@ -1,0 +1,1053 @@
+{
+  "version": 1,
+  "generated_at": "2026-09-22T00:00:00",
+  "note": "主评测集：60 道《异环》中文问答，覆盖角色、剧情、玩法、系统、活动、术语、成就等类别。每题按 expected_points 逐条判分，并用 expected_sources 检验检索是否命中期望来源；answerable 为 false 的题考的是该拒答时能否拒答，这类题另附 why_unanswerable 说明拒答依据。review.status 记录审核状态：pending 为自动生成、尚未审核，ok 为已确认题目与要点正确，fixed 为审核中修正过要点、来源或标签，正在参与评测，drop 为剔除、不参与评测。review.comment 记录该题的复核结论与理由，kb_gap 题必须在此留下说明。审核结果只写进这两个字段：JSON 不支持注释，写在结构外面会让文件无法解析。",
+  "items": [
+    {
+      "question": "《异环》回转AB面一共有几个成就？分别叫什么名字？",
+      "expected_points": [],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622522.html"
+      ],
+      "category": "成就",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "drop",
+        "comment": "复核结论（2026-09-22）：原 expected_points 中“共有四个成就”与实际情况不符，成就数量不止 4 个，要点已清空；本题在补全正确要点前维持 drop。"
+      },
+      "id": "q001"
+    },
+    {
+      "question": "异环1.0版本跟着一图流锄大地大概要花多长时间？",
+      "expected_points": [
+        "大概需要3H左右"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622498.html"
+      ],
+      "category": "玩法",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q002"
+    },
+    {
+      "question": "异能者按异能获取时间可以分成哪两类？",
+      "expected_points": [
+        "一类自出生便具备异能",
+        "另一类在后天通过特定契机觉醒异能"
+      ],
+      "expected_sources": [
+        "https://zh.moegirl.org.cn/%E5%BC%82%E7%8E%AF/%E5%90%8D%E8%AF%8D%E8%AF%8D%E5%85%B8"
+      ],
+      "category": "设定",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q003"
+    },
+    {
+      "question": "异能者在外貌上和普通人类有什么不同？",
+      "expected_points": [
+        "部分异能者与普通人类无明显差异",
+        "另一部分拥有兽化、鬼角或异色皮肤等特征"
+      ],
+      "expected_sources": [
+        "https://zh.moegirl.org.cn/%E5%BC%82%E7%8E%AF/%E5%90%8D%E8%AF%8D%E8%AF%8D%E5%85%B8"
+      ],
+      "category": "设定",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q004"
+    },
+    {
+      "question": "《异环》1.3版本叫什么名字？什么时候上线？",
+      "expected_points": [
+        "版本名为「雾中朔望星回」",
+        "将于8月13日版本更新后开启"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamenews/20260808/263494.html"
+      ],
+      "category": "版本",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q005"
+    },
+    {
+      "question": "Wiki里悬停颜色不生效可能是什么原因？该怎么解决？",
+      "expected_points": [
+        "可能是Wiki原有的样式有更高的优先级",
+        "需确保自定义主题的导入语句在Common.css文件的最前面",
+        "这样CSS变量才能正确覆盖原有样式"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/Feeling"
+      ],
+      "category": "Wiki",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "drop",
+        "comment": "复核结论（2026-09-22）：维持 drop。本题与游戏内容无关：expected_sources 指向 wiki.biligame.com/yh/Feeling，该地址渲染后的标题是「Wiki样式调整器」，题目问的是 wiki 站点自身的 CSS 优先级问题，不属于《异环》游戏知识。该维护页已按设计排除在知识库之外（app/core/sources.py 的 is_wiki_meta_title）。"
+      },
+      "id": "q006"
+    },
+    {
+      "question": "8月20日的不停服更新是在哪个时间段进行的？更新期间会有什么影响？",
+      "expected_points": [
+        "8月20日02:00-06:00",
+        "具体结束时间可能会根据更新情况有所提前或延后",
+        "本次更新不会影响正常游戏进程",
+        "更新期间可能出现短暂闪断，届时重新登录游戏即可完成更新"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260819/263646.html"
+      ],
+      "category": "公告",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q007"
+    },
+    {
+      "question": "《异环》共存测试是什么时候开启、什么时候结束的？",
+      "expected_points": [
+        "2月4日10:00开启",
+        "2月18日23:59结束"
+      ],
+      "expected_sources": [
+        "https://www.gamersky.com/handbook/202601/2076643.shtml"
+      ],
+      "category": "测试",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q008"
+    },
+    {
+      "question": "速刷86000甲硬币时，建议从哪个方向开始驾驶载具？",
+      "expected_points": [
+        "建议从左下开始驾驶载具逛一圈",
+        "即可覆盖相关点位"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622491.html"
+      ],
+      "category": "玩法",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q009"
+    },
+    {
+      "question": "《异环》共存测试的预下载什么时候开启？",
+      "expected_points": [
+        "2月3日10:00开启"
+      ],
+      "expected_sources": [
+        "https://www.gamersky.com/handbook/202601/2076643.shtml"
+      ],
+      "category": "活动时间",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q010"
+    },
+    {
+      "question": "《异环》共存测试是删档测试吗？测试期间的充值会怎么处理？",
+      "expected_points": [
+        "共存测试为限量删档计费测试",
+        "测试期间的充值金额将在游戏正式公测后按返还规则进行返还"
+      ],
+      "expected_sources": [
+        "https://www.gamersky.com/handbook/202601/2076651.shtml"
+      ],
+      "category": "测试规则",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q011"
+    },
+    {
+      "question": "9月4日那次更新的不停服维护时间段是几点到几点？",
+      "expected_points": [
+        "9月4日02:00-06:00进行不停服更新"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260904/263926.html"
+      ],
+      "category": "更新公告",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q012"
+    },
+    {
+      "question": "9月4日不停服更新期间如果出现短暂闪断，玩家应该怎么处理？",
+      "expected_points": [
+        "更新期间可能出现短暂闪断",
+        "重新登录游戏即可完成更新"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260904/263926.html"
+      ],
+      "category": "更新公告",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q013"
+    },
+    {
+      "question": "《异环》共存测试的具体测试时间是哪段时间？",
+      "expected_points": [
+        "2月4日10:00至2月18日23:59"
+      ],
+      "expected_sources": [
+        "https://www.gamersky.com/handbook/202601/2076651.shtml"
+      ],
+      "category": "活动时间",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q014"
+    },
+    {
+      "question": "伊洛伊时装「织梦者」的折扣价格和原价分别是多少异晶？折扣到什么时候结束？",
+      "expected_points": [
+        "折扣价格2680异晶",
+        "原价3280异晶",
+        "折扣时间为7月23日维护更新后至8月13日05:59"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260722/263234.html"
+      ],
+      "category": "时装",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q015"
+    },
+    {
+      "question": "在《异环》共存测试期间充值的钱，公测后会怎样？",
+      "expected_points": [
+        "累计充值金额将在游戏正式公测后按照充值返还规则进行返还"
+      ],
+      "expected_sources": [
+        "https://www.gamersky.com/handbook/202601/2076651.shtml"
+      ],
+      "category": "测试规则",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q016"
+    },
+    {
+      "question": "1.3版本的全新盲盒「逐光破浪」活动时间是什么时候？最多能抽多少次？",
+      "expected_points": [
+        "活动时间为8月13日版本更新后至9月24日05:59",
+        "最多可抽取15次"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260812/263538.html"
+      ],
+      "category": "活动",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q017"
+    },
+    {
+      "question": "盲盒「逐光破浪」里包含哪些奖励？抽满全部次数能拿到什么？",
+      "expected_points": [
+        "包含限定船只「Tide」、娜娜莉限定时装「灿阳逐浪」等奖励",
+        "抽满全部次数即可获得盲盒内全部奖励"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260812/263538.html"
+      ],
+      "category": "活动",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q018"
+    },
+    {
+      "question": "《异环》共存测试的剧情开放到哪里？",
+      "expected_points": [
+        "剧情开放至正篇「成交？成交！」"
+      ],
+      "expected_sources": [
+        "https://www.gamersky.com/handbook/202601/2076643.shtml"
+      ],
+      "category": "剧情",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q019"
+    },
+    {
+      "question": "残虹时装「堇色流火」这次更新做了什么调整？",
+      "expected_points": [
+        "对残虹时装「堇色流火」的动作细节进行了优化"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260904/263926.html"
+      ],
+      "category": "时装",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q020"
+    },
+    {
+      "question": "安魂曲在E.T.D四队里是什么定位？她的人气怎么样？",
+      "expected_points": [
+        "安魂曲是E.T.D四队最可爱的小王牌",
+        "虽然不善交际，但人气一直居高不下"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/main.html"
+      ],
+      "category": "角色",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q021"
+    },
+    {
+      "question": "安魂曲的投诉信数量与什么成正比？除了投诉信，还有什么信件也很多？",
+      "expected_points": [
+        "投诉信数量与公物损毁率成正比",
+        "写给她的感谢信和粉丝信也同样多得惊人"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/main.html"
+      ],
+      "category": "角色",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q022"
+    },
+    {
+      "question": "《异环》一共进行过几次限号删档测试？分别叫什么名字？",
+      "expected_points": [
+        "共进行三次限号删档测试",
+        "「奇点测试」「收容测试」「共存测试」"
+      ],
+      "expected_sources": [
+        "https://zh.moegirl.org.cn/%E5%BC%82%E7%8E%AF"
+      ],
+      "category": "游戏历程",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q023"
+    },
+    {
+      "question": "《异环》的「收容测试」和「共存测试」分别是哪段时间进行的？",
+      "expected_points": [
+        "「收容测试」为2025年6月26日至7月10日",
+        "「共存测试」为2026年2月4日至2月18日"
+      ],
+      "expected_sources": [
+        "https://zh.moegirl.org.cn/%E5%BC%82%E7%8E%AF"
+      ],
+      "category": "游戏历程",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q024"
+    },
+    {
+      "question": "《异环》是什么时候获得版号的？",
+      "expected_points": [
+        "2025年5月21日获得版号"
+      ],
+      "expected_sources": [
+        "https://zh.moegirl.org.cn/%E5%BC%82%E7%8E%AF"
+      ],
+      "category": "游戏历程",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q025"
+    },
+    {
+      "question": "想用飞镖解锁收音机相关的成就，具体该怎么操作？",
+      "expected_points": [
+        "从大门出来往左看上二楼，依次对话后开门",
+        "对收音机使用飞镖即可解锁成就"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622522.html"
+      ],
+      "category": "攻略",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q026"
+    },
+    {
+      "question": "猎人交易所里300方斯能换多少甲硬币？",
+      "expected_points": [
+        "300方斯兑换1000甲硬币"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622504.html"
+      ],
+      "category": "攻略",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q027"
+    },
+    {
+      "question": "18行车日志能换多少方斯？这些方斯拿去猎人交易所又能换多少甲硬币？",
+      "expected_points": [
+        "18行车日志可换5000方斯",
+        "5000方斯可换16666.67甲硬币"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622504.html"
+      ],
+      "category": "攻略",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q028"
+    },
+    {
+      "question": "7月23日那次停服维护的具体时间段是几点到几点？",
+      "expected_points": [
+        "2026年7月23日06:00至11:00进行停服维护"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260722/263234.html"
+      ],
+      "category": "公告",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q029"
+    },
+    {
+      "question": "7月23日停服维护结束后，玩家需要做什么才能完成内容更新？维护结束时间会固定不变吗？",
+      "expected_points": [
+        "维护完成后需重启游戏客户端以完成内容更新",
+        "维护结束时间或将根据实际进度提前或延后"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260722/263234.html"
+      ],
+      "category": "公告",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q030"
+    },
+    {
+      "question": "那份43个避役的包裹全收集攻略是谁整理的？来源标注是哪里？",
+      "expected_points": [
+        "由玩家「小甜甜」整理",
+        "来源标注为taptap"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622495.html"
+      ],
+      "category": "攻略",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q031"
+    },
+    {
+      "question": "这次更新修复了跳车相关的什么问题？",
+      "expected_points": [
+        "修复了驾驶车辆且存在同乘角色时进行跳车操作、角色落地位置概率异常的问题"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260909/264019.html"
+      ],
+      "category": "公告",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q032"
+    },
+    {
+      "question": "移动端设备下房产室内场景概率错误显示下雨特效的问题有没有被修复？",
+      "expected_points": [
+        "修复了移动端设备下房产室内场景概率错误显示下雨特效的问题"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260909/264019.html"
+      ],
+      "category": "公告",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q033"
+    },
+    {
+      "question": "《异环》里探索83个城市违规行径地点能拿到多少甲硬币？",
+      "expected_points": [
+        "86000甲硬币"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622504.html"
+      ],
+      "category": "玩法收益",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q034"
+    },
+    {
+      "question": "异环里 83 个城市违规行径点位可以拿到多少甲硬币？顺手还能完成什么？",
+      "expected_points": [
+        "86000甲硬币",
+        "顺手三个成就"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622504.html",
+        "https://shouyou.3dmgame.com/gl/622491.html"
+      ],
+      "category": "玩法收益",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "fixed",
+        "comment": "改题记录（2026-09-22，维护者拍板）：原题「探索城市违规行径地点会消耗体力吗？还能顺便完成什么？」的要点「不消耗体力」只能靠「10 种不消耗体力获取甲硬币的方式」这个清单标题反推（正文并未把「不消耗体力」挂在违规点位这一条上），导致模型时而推断（2/2）、时而拒答（1/2，称资料未明写）。现改为直接问库里直说的两个事实：86000 甲硬币（条目「10种不耗体力获取甲硬币方式」与「异环30分钟速刷86000甲硬币」原文）与顺手三个成就（原文「83个点位顺手三个成就」）。"
+      },
+      "id": "q035"
+    },
+    {
+      "question": "《异环》共存测试的招募什么时候截止？",
+      "expected_points": [
+        "1月23日 11:00"
+      ],
+      "expected_sources": [
+        "https://www.gamersky.com/handbook/202601/2076651.shtml"
+      ],
+      "category": "测试信息",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q036"
+    },
+    {
+      "question": "在异环里处理违规点位有哪两种方式？",
+      "expected_points": [
+        "去蓝色标记处兑换奖励",
+        "直接使用消除通缉值"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622491.html"
+      ],
+      "category": "玩法机制",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "drop",
+        "comment": "复核结论（2026-09-22）：原 status 为 drop 而 comment 为空，本次复核补齐说明。题目表述可能不准确，处理违规点位的方式需进一步核实，维持 drop。"
+      },
+      "id": "q037"
+    },
+    {
+      "question": "页面样式没有生效的话该怎么处理？",
+      "expected_points": [
+        "清除浏览器缓存（Ctrl+F5）后重试"
+      ],
+      "expected_sources": [
+        "https://wiki.biligame.com/yh/Feeling"
+      ],
+      "category": "页面问题",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "drop",
+        "comment": "复核结论（2026-09-22）：维持 drop。本题与游戏内容无关：来源同为 BWIKI 的「Wiki样式调整器」维护页（wiki.biligame.com/yh/Feeling），问的是浏览器缓存导致 wiki 页面样式不生效，属于站点使用问题而非《异环》游戏知识。该维护页已按设计排除在知识库之外。"
+      },
+      "id": "q038"
+    },
+    {
+      "question": "异环1.0「魔术师的馈赠」要在哪些地区收集？",
+      "expected_points": [
+        "米格尔区",
+        "新赫兰德区"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622493.html"
+      ],
+      "category": "收集玩法",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "drop",
+        "comment": "复核结论（2026-09-22）：维持 drop。收集地区不止「米格尔区」「新赫兰德区」两个，而知识库来源攻略原文只写了这两个区，属来源不完整而非抽取错误。当前文件未提供完整的可核验地区列表，本题在补全 expected_points 后可恢复。"
+      },
+      "id": "q039"
+    },
+    {
+      "question": "每日异象家具木箱领取甲硬币，只买天景空馆和买200w金都云邸升到10级，每天分别能领多少？",
+      "expected_points": [
+        "只购买天景空馆每日最多领取3000甲硬币",
+        "购买200w的金都云邸并升到10级每日可获取10000甲硬币"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622504.html"
+      ],
+      "category": "玩法收益",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q040"
+    },
+    {
+      "question": "8月20日不停服更新优化了「排球之星」的哪项操作手感？",
+      "expected_points": [
+        "拦网操作手感"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260819/263646.html"
+      ],
+      "category": "更新公告",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "fixed",
+        "comment": "复核结论（2026-09-22）：要点内容正确，缺失的是时间锚点（原题未指明属于哪次更新），已在题面补上时间锚点，来源为《异环》8月20日不停服更新公告。"
+      },
+      "id": "q041"
+    },
+    {
+      "question": "8月20日不停服更新中，「排球之星」修复了哪些问题？",
+      "expected_points": [
+        "赢得比赛后角色「残虹」播放胜利动作时时装异常穿模",
+        "排球皮肤「海特洛日出」概率拖尾特效不显示",
+        "男角色抛球时排球概率异常抖动",
+        "新球员解锁弹窗概率重复弹出"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260819/263646.html"
+      ],
+      "category": "更新公告",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "fixed",
+        "comment": "复核结论（2026-09-22）：要点内容正确，缺失的是时间锚点（原题未指明属于哪次更新），已在题面补上时间锚点，来源同为《异环》8月20日不停服更新公告。"
+      },
+      "id": "q042"
+    },
+    {
+      "question": "《异环》的故事从哪座城市开始？玩家扮演的是什么身份？",
+      "expected_points": [
+        "海特洛市",
+        "首位「无证上岗」的「异象猎人」"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamenews/20260808/263494.html"
+      ],
+      "category": "世界观",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q043"
+    },
+    {
+      "question": "玩家在《异环》里加入了哪家古董店？靠什么维持周转？",
+      "expected_points": [
+        "古董店「伊波恩」",
+        "接取民间异象委托维持周转"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamenews/20260808/263494.html"
+      ],
+      "category": "世界观",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q044"
+    },
+    {
+      "question": "《异环》里可提升好感度的角色一共有多少名？",
+      "expected_points": [
+        "15名"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622499.html"
+      ],
+      "category": "角色",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q045"
+    },
+    {
+      "question": "《异环》中可送礼提升好感度的角色名单里，包含哪几位？",
+      "expected_points": [
+        "浔、娜娜莉、九原、小吱、法帝娅、薄荷、早雾、白藏、哈索尔、达芙蒂尔、哈尼娅、海月、翳、埃德嘉、阿德勒"
+      ],
+      "expected_sources": [
+        "https://shouyou.3dmgame.com/gl/622499.html"
+      ],
+      "category": "角色",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "drop",
+        "comment": "复核结论（2026-09-22）：维持 drop。题面与要点已过时，可送礼提升好感度的角色名单会随版本更新变动。"
+      },
+      "id": "q046"
+    },
+    {
+      "question": "《异环》的故事是从哪座城市开始的？玩家在故事里是什么身份？",
+      "expected_points": [
+        "海特洛市",
+        "首位「无证上岗」的「异象猎人」",
+        "古董店「伊波恩」的一员"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260916/264201.html"
+      ],
+      "category": "剧情",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": ""
+      },
+      "id": "q047"
+    },
+    {
+      "question": "《异环》开服兑换码YHNOWTOENJOY在哪里使用？",
+      "expected_points": [
+        "游戏内兑换码输入框"
+      ],
+      "expected_sources": [
+        "https://www.gamersky.com/handbook/202604/2129310.shtml"
+      ],
+      "category": "福利",
+      "difficulty": "easy",
+      "answerable": true,
+      "review": {
+        "status": "drop",
+        "comment": "复核结论（2026-09-22）：维持 drop。开服兑换码 YHNOWTOENJOY 已过时，兑换位置本身仍有据可查，但题目时效前提不成立。"
+      },
+      "id": "q048"
+    },
+    {
+      "question": "1.4版本什么时候上线，叫什么名字？",
+      "expected_points": [
+        "1.4版本名为「祷歌为谁而诵」",
+        "将于9月24日版本更新后开启"
+      ],
+      "expected_sources": [],
+      "category": "版本更新",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "fixed",
+        "comment": "复核结论（2026-09-22）：自动核验不通过（知识库原文可以回答该问题，相关性 0.44），人工复核确认要点正确。原文明确提到 1.4 版本名为「祷歌为谁而诵」，将于 9 月 24 日版本更新后开启，已据此补 expected_points。expected_sources 仍为空，本题的来源尚未落到可提交字段里。"
+      },
+      "id": "q049"
+    },
+    {
+      "question": "下一个新角色是谁，她的技能和定位是什么？",
+      "expected_points": [],
+      "expected_sources": [],
+      "category": "角色",
+      "difficulty": "hard",
+      "answerable": false,
+      "why_unanswerable": "资料中没有提到任何尚未公布的新角色及其技能或定位信息。",
+      "review": {
+        "status": "drop",
+        "comment": "复核结论（2026-09-22）：维持 drop。自动核验通过（所有原文均未提及下一个新角色的身份、技能或定位信息，相关性 0.34），该结论对当前知识库快照成立；公开预告已提及该角色，属知识库过时。当前文件未提供可验证的具体角色信息，更新知识库后可改为可回答。"
+      },
+      "id": "q050",
+      "time_sensitive": true
+    },
+    {
+      "question": "异环会不会和别的游戏或动漫联动？联动时间是什么时候？",
+      "expected_points": [],
+      "expected_sources": [],
+      "category": "联动",
+      "difficulty": "hard",
+      "answerable": false,
+      "why_unanswerable": "资料中没有任何关于未来联动计划或联动时间的内容。",
+      "review": {
+        "status": "drop",
+        "comment": "复核结论（2026-09-22）：维持 drop。自动核验通过（所有原文均未提及《异环》与任何游戏或动漫的联动信息及联动时间，相关性 0.39），属知识库过时：公开预告已提及联动。当前文件未提供可验证的具体联动信息，更新知识库后可改为可回答。"
+      },
+      "id": "q051",
+      "time_sensitive": true
+    },
+    {
+      "question": "限定S级弧盘「噬心诡刃」的满级攻击力是多少？",
+      "expected_points": [
+        "570"
+      ],
+      "expected_sources": [
+        "https://kamigame.jp/nte/page/435479019140427436.html"
+      ],
+      "category": "数值",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "fixed",
+        "comment": "改题记录（2026-09-22，维护者拍板）：满级攻击力 570 由维护者口述，并以神ゲー攻略「喰心刃」页（攻撃力 37～570）作独立佐证；该数值没有任何可抓的中文来源，故经 tools/manual_facts.py 走人工录入层落进种子（可信度 0.834）。题面去掉了查不到的「副属性具体数值」。旧状态：answerable=false / status=drop / kb_gap=true（资料只提到获取方式）。"
+      },
+      "id": "q052"
+    },
+    {
+      "question": "共存测试的充值返还比例具体是多少，返还上限是多少？",
+      "expected_points": [],
+      "expected_sources": [],
+      "category": "活动",
+      "difficulty": "hard",
+      "answerable": false,
+      "why_unanswerable": "资料只说明充值金额会按返还规则返还，但没有列出具体返还比例或上限。",
+      "review": {
+        "status": "ok",
+        "comment": "复核结论（2026-09-22）：自动核验通过（相关性 0.53）。原文仅提及充值会按返还规则返还，未给出具体的返还比例和返还上限数值，本题的拒答依据成立。"
+      },
+      "id": "q053"
+    },
+    {
+      "question": "「摄心特刊」研募计划的保底次数是多少？保底次数会随特刊结束清零吗？",
+      "expected_points": [
+        "至多6次研募必定通过保底获得S级弧盘",
+        "至多8次研募必定通过保底获得当期限定S级弧盘",
+        "保底次数在所有限定特刊之间共享、永久累计并可继承"
+      ],
+      "expected_sources": [
+        "https://news.17173.com/content/06162026/171559836.shtml"
+      ],
+      "category": "抽卡",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "fixed",
+        "comment": "改题记录（2026-09-22，维护者拍板）：维护者确认摄心特刊的保底次数与其它特刊一致；17173 转载的官方公众号「追猎特刊」弧盘研募计划公告写明至多 6 次研募必得 S 级弧盘、至多 8 次必得当期 S 级弧盘、所有限定特刊保底次数完全共享并永久累计；概率数值任何来源都查不到，题面里已去掉「概率」。事实经 tools/manual_facts.py 走人工录入层落进种子（可信度 0.855）。旧状态：answerable=false / status=drop / kb_gap=true。"
+      },
+      "id": "q054"
+    },
+    {
+      "question": "异环的公测正式上线日期是哪一天？",
+      "expected_points": [
+        "简中版公测于2026年4月23日开启",
+        "繁中及国际版公测于2026年4月29日开启"
+      ],
+      "expected_sources": [],
+      "category": "版本更新",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "fixed",
+        "comment": "复核结论（2026-09-22）：自动核验不通过（知识库原文可以回答该问题，相关性 0.40）。原文条目明确给出简中版 2026 年 4 月 23 日、繁中及国际版 2026 年 4 月 29 日公测，已据此补 expected_points。expected_sources 仍为空，本题的来源尚未落到可提交字段里。"
+      },
+      "id": "q055"
+    },
+    {
+      "question": "下一个盲盒或下一期限定时装会是什么主题，什么时候出？",
+      "expected_points": [],
+      "expected_sources": [],
+      "category": "活动",
+      "difficulty": "hard",
+      "answerable": false,
+      "why_unanswerable": "资料只介绍了当前盲盒「逐光破浪」和伊洛伊时装「织梦者」，没有关于未来盲盒或时装的内容。",
+      "review": {
+        "status": "drop",
+        "comment": "复核结论（2026-09-22）：维持 drop。自动核验通过（原文只介绍了当前盲盒「逐光破浪」的内容和时间，未提及下一个盲盒或下一期限定时装的主题及上线时间，相关性 0.38），属知识库过时：公开预告已提及。当前文件未提供可验证的具体主题和时间，更新知识库后可改为可回答。"
+      },
+      "id": "q056",
+      "time_sensitive": true
+    },
+    {
+      "question": "角色好感度提升到满级会有什么奖励或解锁什么剧情？",
+      "expected_points": [],
+      "expected_sources": [],
+      "category": "角色",
+      "difficulty": "hard",
+      "answerable": false,
+      "why_unanswerable": "资料只列出15名可送礼角色名单，没有说明好感度满级的奖励或剧情内容。",
+      "review": {
+        "status": "drop",
+        "comment": "复核结论（2026-09-22）：维持 drop，kb_gap 标记保留。自动核验通过（原文只说明了满好感所需的好感度数值和加成，未提及满级后有什么奖励或解锁什么剧情，相关性 0.42）；游戏内确有奖励与可解锁剧情，且角色名单随更新增加，属抽取缺口。当前文件未提供具体奖励和剧情内容，更新知识库后可改为可回答。"
+      },
+      "id": "q057",
+      "kb_gap": true
+    },
+    {
+      "question": "异象等级Ⅰ级到Ⅴ级对应的具体维特海默值区间分别是多少？",
+      "expected_points": [
+        "Ⅰ级：维特海默值波动在 (-2,-1] 区间，几乎不会影响人类生活秩序",
+        "Ⅱ级：波动在 (-3,-2] 区间，有能力造成个别人员轻伤",
+        "Ⅲ级：波动在 (-4,-3] 区间，有能力造成个别人员伤亡",
+        "Ⅳ级：波动在 (-5,-4] 区间，有能力在城市非人口密集区域造成多人伤亡",
+        "Ⅴ级：波动在 (-10,-5] 区间，有能力在城市区域造成大量伤亡"
+      ],
+      "expected_sources": [],
+      "category": "数值",
+      "difficulty": "hard",
+      "answerable": true,
+      "review": {
+        "status": "fixed",
+        "comment": "复核结论（2026-09-22）：自动核验不通过（知识库原文可以回答该问题，相关性 0.63），已改为可回答。原文明确列出了异象等级Ⅰ级到Ⅴ级对应的维特海默值波动区间，expected_points 已按来源原文（萌娘百科「异环/名词词典」的异象能力分级段落）逐级摘录填入。该段括号开闭与「能力/危险程度」的表述是否与游戏内一致，尚未取得游戏内文本佐证。"
+      },
+      "id": "q058"
+    },
+    {
+      "question": "1.3版本之后还会推出哪些新地图或新区域？",
+      "expected_points": [],
+      "expected_sources": [],
+      "category": "版本更新",
+      "difficulty": "hard",
+      "answerable": false,
+      "why_unanswerable": "资料中没有提到任何未来版本的新地图或新区域计划。",
+      "review": {
+        "status": "drop",
+        "comment": "复核结论（2026-09-22）：维持 drop。自动核验通过（原文仅提及 1.3 版本新增的「泊暮区」，未提供 1.3 版本之后将推出的新地图或新区域信息，相关性 0.41），属知识库过时：公开预告已提及。当前文件未提供可验证的具体新地图信息，更新知识库后可改为可回答。"
+      },
+      "id": "q059",
+      "time_sensitive": true
+    },
+    {
+      "question": "「摄心特刊」研募计划结束后，噬心诡刃会不会进入常驻池或复刻？",
+      "expected_points": [
+        "噬心诡刃仅可在「摄心特刊」研募计划中获得",
+        "活动结束后暂无获取途径",
+        "不会进入常驻池"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260812/263538.html"
+      ],
+      "category": "抽卡",
+      "difficulty": "hard",
+      "answerable": false,
+      "why_unanswerable": "资料只说明该弧盘仅可在「摄心特刊」获得且活动结束后相关安排未提及，没有说明后续是否复刻或进常驻。",
+      "review": {
+        "status": "drop",
+        "comment": "复核结论（2026-09-22）：维持 drop。自动核验不通过（知识库原文可以回答该问题，相关性 0.60）：原文明确说明噬心诡刃仅可在摄心特刊研募计划中获得，活动结束后暂无获取途径。游戏内已有复刻先例，但从未进入常驻池，该信息与原结论不冲突；题目同时问“常驻池或复刻”存在歧义，需拆分为两题，或改写为“噬心诡刃会不会进入常驻池”。"
+      },
+      "id": "q060"
+    }
+  ]
+}

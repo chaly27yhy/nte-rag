@@ -1,0 +1,90 @@
+# requirements.lock.txt —— 锁定版本快照（运行时 + 开发期依赖的完整闭包）
+#
+# 本文件由人工生成，不是构建输入：
+#   快照时间：2026-09-23
+#   快照环境：维护者的 Windows 11 x64 机器，Python 3.12.10（.venv）
+#   生成方式：逐个读取 .venv\Lib\site-packages\*.dist-info 的目录名（不用 pipenv/poetry/pip-tools）
+#
+# requirements.txt / requirements-dev.txt 才是依赖的事实来源（只写下限，便于长期可用）；
+# 本文件用于复现维护者当时那套精确版本，以及排查上游新版本引入的差异。
+# 它不是安装入口；上游升级后需要重新生成本文件。
+#
+# 有一个版本无法从本机读出（proxy_tools==0.1.0），说明见文末。
+#
+# 安装方式（普通机器）：
+#   python -m venv .venv
+#   .venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+# 受限环境（沙箱/企业策略）见 CONTRIBUTING.md 的说明。
+
+# ---- 运行时依赖（requirements.txt 的直接依赖）----
+beautifulsoup4==4.15.0
+ddgs==9.16.0
+fastapi==0.141.1
+httpx==0.28.1
+lxml==6.1.3
+pywebview==6.2.1
+trafilatura==2.2.0
+uvicorn==0.53.0
+
+# ---- 开发/打包期依赖（requirements-dev.txt 的直接依赖）----
+pillow==12.3.0
+pyinstaller==6.22.3
+pythonnet==3.1.0
+
+# ---- 传递依赖（由上面这些包间接引入）----
+altgraph==0.17.5
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anyio==4.15.1
+babel==2.18.0
+bottle==0.13.4
+certifi==2026.7.22
+cffi==2.1.1
+charset-normalizer==3.5.1
+click==8.5.0
+clr_loader==0.3.1
+courlan==1.4.0
+dateparser==1.4.3
+h11==0.16.0
+htmldate==1.10.0
+httpcore==1.0.9
+idna==3.20
+justext==3.0.2
+lxml_html_clean==0.4.5
+packaging==26.3
+pefile==2024.8.26
+primp==2.0.1
+proxy_tools==0.1.0
+pycparser==3.0
+pydantic==2.13.5
+pydantic_core==2.46.5
+pyinstaller_hooks_contrib==2026.7
+python_dateutil==2.9.0.post0
+pytz==2026.3.post1
+pywin32_ctypes==0.2.3
+regex==2026.9.10
+setuptools==84.0.0
+six==1.17.0
+soupsieve==2.9.2
+starlette==1.6.0
+tld==0.13.2
+typing_extensions==4.16.0
+typing_inspection==0.4.4
+tzdata==2026.4
+tzlocal==5.4.4
+urllib3==2.8.0
+wheel==0.48.0
+
+# ---- 两处例外 ----
+#
+# 1) proxy_tools==0.1.0（pywebview 的依赖）
+#    本机用 tools\fetch_pure_sdist.py 直接从 sdist 解出顶层模块放进 site-packages
+#    （沙箱禁止 pip 起 setup.py 子进程），没有 .dist-info，因此
+#    importlib.metadata.version("proxy_tools") 会抛 PackageNotFoundError：
+#    上面那一行不是从本机读出的，而是查 PyPI 得到
+#    （proxy_tools 在 PyPI 上只有 0.1.0 一个发行版）。
+#
+# 2) 本项目的 .venv 没有 pip（python -m pip --version 报 No module named pip），
+#    这是刻意的：依赖由外部带 pip 的解释器配合 tools\pip_runner.py 以 --target
+#    方式装进 .venv\Lib\site-packages。因此这个 venv 里不能直接 pip install，
+#    要按 CONTRIBUTING.md 的步骤来。
