@@ -1,0 +1,20 @@
+# 依赖更新检查：只提 PR，不自动合并。
+# 运行依赖会被打进安装包，升级后需要重跑 tools/quality_check.py、
+# tools/verify_exe.ps1 并重建安装包，因此这里的作用是提醒版本变化。
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "依赖"
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "依赖"

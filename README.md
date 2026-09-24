@@ -1,5 +1,7 @@
 # 异环 RAG 知识助手（Neverness to Everness / NTE）
 
+[![质量自检](https://github.com/chaly27yhy/nte-rag/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/chaly27yhy/nte-rag/actions/workflows/ci.yml)
+
 > 这一版的定位是中文工具：内置资料、内置来源与检索流程都以中文为主，
 > 英文界面（以及英文提问）不会带来可用的英文资料。
 > **English readers: see [README.en.md](README.en.md)** —— the English file is a summary;

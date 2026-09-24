@@ -1,5 +1,7 @@
 # NTE-RAG — a local RAG knowledge assistant for *Neverness to Everness*
 
+[![CI](https://github.com/chaly27yhy/nte-rag/actions/workflows/ci.yml/badge.svg?branch=main&label=CI)](https://github.com/chaly27yhy/nte-rag/actions/workflows/ci.yml)
+
 [中文说明（主文档）](README.md) | **English**
 
 > This build is **Chinese-first**: the bundled data, the built-in sources and the retrieval layer are
