@@ -4,6 +4,11 @@ on:
   push:
   pull_request:
 
+# 工作流只需要读代码：显式声明后，GITHUB_TOKEN 不再带着默认的写权限，
+# 第三方 action 或脚本即使被改动也改不了仓库内容。
+permissions:
+  contents: read
+
 env:
   # 这里只能放字面量：工作流级的 env 不支持 runner 上下文。
   # 写成 ${{ runner.temp }} 会让 GitHub 判「Invalid workflow file」并拒绝整个工作流。
