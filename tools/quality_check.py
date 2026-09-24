@@ -4825,9 +4825,10 @@ def test_fixes_round8() -> None:
           "if ($code -ne 0)" in ci and "全部通过" in ci
           and r"共 \d+ 项：通过 \d+，失败 0" in ci)
     check("CI 仍保留总数下界，避免整段被跳过也判通过", "$total -lt 500" in ci)
+    # 版本号不写死：Dependabot 升级 action 主版本是正常维护，断言不该跟着变红。
     check("CI 仍先跑密钥门禁，并且失败也会留下自检日志",
-          r"tools\secret_scan.py" in ci and "actions/upload-artifact@v4" in ci
-          and "if: always()" in ci)
+          r"tools\secret_scan.py" in ci and "if: always()" in ci
+          and re.search(r"actions/upload-artifact@v\d+", ci) is not None)
 
 
 def _store_version_key(value: str):
