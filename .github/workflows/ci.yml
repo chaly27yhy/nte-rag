@@ -80,7 +80,7 @@ jobs:
 
       - name: 保留自检日志
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: quality-check-log
           path: quality-check.log
