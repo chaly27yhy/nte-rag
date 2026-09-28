@@ -4831,6 +4831,103 @@ def test_fixes_round8() -> None:
           and re.search(r"actions/upload-artifact@v\d+", ci) is not None)
 
 
+def test_lock_pairs() -> None:
+    """【36】锁文件里的精确配套关系：pydantic 只认指定版本的 pydantic-core。
+
+    起因：Dependabot 提过一个只把 `requirements.lock.txt` 里 `pydantic-core` 从
+    2.46.5 升到 2.49.0 的 PR。pydantic 2.13.5 的元数据写死了
+    `pydantic-core==2.46.5`，单独升 core 这一对在导入时就会对不上；当时 CI 是绿的，
+    因为 `requirements-dev.txt` 装的是 `requirements.txt` 里的 `>=` 范围，锁文件
+    自身没人校验，这种「绿着进来、装不上」的 PR 没人拦。
+
+    这一节钉住：锁文件里「被另一个包用 `==` 精确固定」的依赖，版本必须一致。带
+    extra / 环境标记（`;`）或通配（`httpx` 的 `httpcore==1.*`）的不算，那是可选项
+    或范围，不是配套关系。升级 pydantic 时同步更新下面的配套表。
+    """
+
+    print("\n【36】锁文件里的精确配套关系")
+
+    # pydantic 的元数据里写死了它要的 pydantic-core 版本，两个包必须一起升。
+    # 更新方法：
+    #   python -c "from importlib.metadata import requires; print(requires('pydantic'))"
+    pydantic_core_pin = {"2.13.5": "2.46.5"}
+
+    root_dir = Path(__file__).resolve().parents[1]
+    lock_text = (root_dir / "requirements.lock.txt").read_text(encoding="utf-8")
+    pins: dict = {}
+    for raw in lock_text.splitlines():
+        m = re.fullmatch(r"([A-Za-z0-9_.\-]+)==([^\s;]+)", raw.strip())
+        if m:
+            pins[re.sub(r"[-_.]+", "-", m.group(1)).lower()] = m.group(2)
+
+    check("锁文件里 pydantic 与 pydantic-core 都精确固定了版本",
+          "pydantic" in pins and "pydantic-core" in pins,
+          f"pydantic={pins.get('pydantic')}　pydantic-core={pins.get('pydantic-core')}")
+
+    locked_pydantic = pins.get("pydantic", "")
+    check("锁文件里的 pydantic 版本已登记它的 pydantic-core 配套版本",
+          locked_pydantic in pydantic_core_pin,
+          f"锁文件是 pydantic=={locked_pydantic}，配套表里只有 {sorted(pydantic_core_pin)}")
+    check("锁文件里的 pydantic-core 与配套版本一致",
+          pins.get("pydantic-core") == pydantic_core_pin.get(locked_pydantic),
+          f"应当是 {pydantic_core_pin.get(locked_pydantic)}，实际 {pins.get('pydantic-core')}")
+
+    # 自动扫描：本机装着的版本与锁文件一致时，用它的元数据核对所有精确配套关系。
+    # 这一步覆盖以后新增的精确配套，不只 pydantic 这一对。
+    from importlib import metadata as importlib_metadata
+
+    installed: dict = {}
+    for dist in importlib_metadata.distributions():
+        name = dist.metadata["Name"]
+        if name:
+            installed[re.sub(r"[-_.]+", "-", name).lower()] = dist.version
+
+    violations: list = []
+    verified: list = []
+    for key, ver in sorted(pins.items()):
+        if installed.get(key) != ver:
+            continue
+        try:
+            requires = importlib_metadata.requires(key) or []
+        except importlib_metadata.PackageNotFoundError:
+            continue
+        for req in requires:
+            if ";" in req:  # 带 extra / 环境标记的是可选项，不是配套关系
+                continue
+            m = re.fullmatch(r"([A-Za-z0-9_.\-]+)==(\d+(?:\.\d+)+)", req.strip())
+            if not m:
+                continue
+            dep = re.sub(r"[-_.]+", "-", m.group(1)).lower()
+            if dep not in pins:
+                continue
+            verified.append(f"{key} -> {dep}")
+            if pins[dep] != m.group(2):
+                violations.append(f"{key}=={ver} 要求 {dep}=={m.group(2)}，锁文件里是 {pins[dep]}")
+
+    if verified:
+        check("锁文件里被精确固定的依赖版本都自洽（按已装元数据自动扫描）",
+              not violations,
+              "；".join(violations) or f"核对了 {len(verified)} 条：{'、'.join(verified)}")
+    else:
+        skip("锁文件里被精确固定的依赖版本都自洽（按已装元数据自动扫描）",
+             "本机安装版本与锁文件对不上，没有可核对的元数据（CI 上属正常）")
+
+    declared = [r.split("==")[-1] for r in (importlib_metadata.requires("pydantic") or [])
+                if r.startswith("pydantic-core==")]
+    if installed.get("pydantic") == locked_pydantic:
+        check("配套表里的值与 pydantic 元数据声明的版本一致（表没过期）",
+              declared == [pydantic_core_pin.get(locked_pydantic)],
+              f"元数据声明 {declared}")
+    else:
+        skip("配套表里的值与 pydantic 元数据声明的版本一致（表没过期）",
+             f"本机 pydantic=={installed.get('pydantic')}，锁文件是 {locked_pydantic}")
+
+    dep_text = (root_dir / ".github" / "dependabot.yml").read_text(encoding="utf-8")
+    check("Dependabot 不再单独提 pydantic-core 的升级 PR",
+          re.search(r"-\s*dependency-name:\s*pydantic-core\b", dep_text) is not None,
+          "两个包必须一起升，见 .github/dependabot.yml 的 ignore 段")
+
+
 def _store_version_key(value: str):
     from app.core import store as store_mod
     return store_mod._version_sort_key(value)
@@ -4873,6 +4970,7 @@ def main() -> int:
     test_fixes_round6()
     test_fixes_round7()
     test_fixes_round8()
+    test_lock_pairs()
     _cleanup_scratch()
 
     failed = [name for name, ok in results if not ok]

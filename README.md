@@ -7,7 +7,7 @@
 > **English readers: see [README.en.md](README.en.md)** —— the English file is a summary;
 > this Chinese file is the authoritative document.
 
-> **发布状态（2026-09-24）**：功能已冻结，自测 **698** 项全绿
+> **发布状态（2026-09-24）**：功能已冻结，自测 **704** 项全绿
 > （`.venv\Scripts\python.exe tools\quality_check.py`），安装包已构建并逐项验证。
 
 一个单文件、免安装的《异环》（Neverness to Everness，英文缩写 NTE）知识库问答工具。
@@ -392,7 +392,7 @@ README 只保留用户使用部分。想读代码、调环境、自己打包，�
 
 ```powershell
 .venv\Scripts\python.exe -m pip install -r requirements-dev.txt   # 装开发依赖
-.venv\Scripts\python.exe tools\quality_check.py                   # 698 项自检（不需要模型，不需要网络）
+.venv\Scripts\python.exe tools\quality_check.py                   # 704 项自检（不需要模型，不需要网络）
 powershell -ExecutionPolicy Bypass -File tools\build_exe.ps1      # 打包出下面两个产物
 ```
 

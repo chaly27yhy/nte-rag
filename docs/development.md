@@ -162,7 +162,8 @@ NTE_RAG_DEV_SEARCH_API_KEY=你的博查Key
 # 第七批修复回归（已证伪来源的页面级撤回：写入侧、种子导入侧、老库启动迁移）/
 # 第八批修复回归（设置页拉取模型的探针地址采用规则：两种请求体形态、换主机要重填 Key）/
 # 第九批修复回归（CI 工作流能被 GitHub 接受：工作流级只写字面量、数据目录在步骤里设置）/
-# 698 项断言，
+# 第十批修复回归（锁文件里的精确配套关系：pydantic 必须与 pydantic-core 同版本）/
+# 704 项断言，
 # 不需要模型也不需要网络；--quiet 只打印失败项
 .venv\Scripts\python.exe tools\quality_check.py --quiet
 .venv\Scripts\python.exe tools\wiki_api_check.py --list  # 结构化接口（BWIKI 模板字段）端到端：--offline 只用缓存
@@ -303,6 +304,16 @@ NTE_RAG_DEV_SEARCH_API_KEY=你的博查Key
 > 自检【35】钉住这条：工作流级不允许出现 `${{ }}`（注释行不计），数据目录必须在步骤里设置，
 > 退出码 / 失败 0 / 全部通过 / 总数下界 / 密钥门禁 / 失败留档六项也一并钉住。回归断言【35】。
 
+> **Dependabot 提过一个装不上的升级（【36】）。** PR 只改了 `requirements.lock.txt` 里的一行：
+> `pydantic_core` 从 2.46.5 升到 2.49.0。`pydantic` 2.13.5 的元数据里写死了
+> `pydantic-core==2.46.5`，两个包必须同版本，单独升 core 这一对在导入时就会对不上。
+> CI 当时是绿的：`requirements-dev.txt` 装的是 `requirements.txt` 里的 `>=` 范围，
+> 锁文件自身没有任何人校验，这类「绿着进来、装不上」的 PR 一直没人拦。改法有两处：
+> `.github/dependabot.yml` 的 pip 段忽略 `pydantic-core`（要升就两个包一起升），自检【36】
+> 钉住锁文件里的精确配套关系——凡是被另一个包用 `==` 精确固定的依赖，版本必须一致
+> （带 extra / 环境标记或通配的不算），并按已装元数据把整份锁文件自动扫一遍。
+> 配套值的更新方法写在【36】的注释里。回归断言【36】。
+
 ### 重建种子知识库
 
 ```powershell
@@ -390,7 +401,7 @@ powershell -ExecutionPolicy Bypass -File tools\verify_exe.ps1 -Exe 'dist\NTE-RAG
   （流式 2.7s / 731 字 / 8 条引用）；免 Key 的 DuckDuckGo 兜底返回 5 条结果；
   中文检索相关查询相关性 0.766、无关查询 0.000（正确触发联网）。
 - 界面结构、图标与元素 id 一致性、壁纸接口往返与两层适配、向导回退结构均已自动化验证
-  （见 `tools/quality_check.py` 全量 **698** 项断言与自检的 `ui_markup` / `wallpaper_roundtrip` / `starter_asks`）。
+  （见 `tools/quality_check.py` 全量 **704** 项断言与自检的 `ui_markup` / `wallpaper_roundtrip` / `starter_asks`）。
 - 复现方式：把开发用 Key 填入 `.env` 后执行 `.venv\Scripts\python.exe tools\live_check.py`。
 
 ### 发布（GitHub Releases）

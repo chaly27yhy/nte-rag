@@ -10,6 +10,11 @@ updates:
     open-pull-requests-limit: 3
     commit-message:
       prefix: "依赖"
+    ignore:
+      # pydantic 的元数据里写死了它要的 pydantic-core 版本（pydantic 2.13.5 要求
+      # pydantic-core==2.46.5）。单独升 core 会让这一对在导入时对不上，所以这类
+      # 拆不开的升级不提 PR；真要升级就两个包一起改，见 tools/quality_check.py 第【36】节。
+      - dependency-name: pydantic-core
 
   - package-ecosystem: github-actions
     directory: /

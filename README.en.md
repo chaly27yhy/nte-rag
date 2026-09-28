@@ -154,7 +154,7 @@ So the framework is generic, while the bundled data and the collectors are not.
 ## Development and tests
 
 ```powershell
-.venv\Scripts\python.exe tools\quality_check.py      # 698 assertions, no model, no network
+.venv\Scripts\python.exe tools\quality_check.py      # 704 assertions, no model, no network
 node --check app\web\app.js                          # front-end syntax gate (needs Node.js)
 .venv\Scripts\python.exe run.py --window-test         # can a native window be created?
 powershell -ExecutionPolicy Bypass -File tools\build_exe.ps1   # builds dist\

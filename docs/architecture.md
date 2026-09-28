@@ -233,7 +233,7 @@ trust = 0.45 × 来源等级      official 1.0 / manual 0.95 / wiki 0.75 / seed 
 | 问答链路与提示词 | `app/core/rag.py` |
 | HTTP 接口 | `app/server/api.py` |
 | 界面 | `app/web/index.html` / `style.css` / `app.js` |
-| 自检断言（698 项） | `tools/quality_check.py` |
+| 自检断言（704 项） | `tools/quality_check.py` |
 | 版本资源与发布件 | `tools/make_version_info.py` / `tools/build_exe.ps1` |
 
 ---
