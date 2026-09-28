@@ -8,7 +8,7 @@
 fastapi>=0.115
 # app/server/api.py 直接 import，不靠 FastAPI 的传递依赖兜底
 pydantic>=2.9
-starlette>=0.40
+starlette>=1.7.0
 uvicorn>=0.32
 httpx>=0.27
 beautifulsoup4>=4.12
