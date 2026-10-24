@@ -63,7 +63,7 @@ python_dateutil==2.9.0.post0
 pytz==2026.3.post1
 pywin32_ctypes==0.2.3
 regex==2026.9.10
-setuptools==84.0.0
+setuptools==84.1.0
 six==1.17.0
 soupsieve==2.9.2
 starlette==1.6.0
