@@ -28,13 +28,9 @@ intended use.
 - Portable mode: put your data next to the exe and carry the whole folder on a USB stick.
 - Repository name `nte-rag`; `yihuan`, `NTE` and `Neverness to Everness` all refer to the same game.
 
-**What it is not.** It is **not** an English knowledge base. Everything it knows is Chinese: the bundled
-seed data (685 structured facts + 152 source excerpts from 70 documents — one of those documents is on the
-withdrawal list and is skipped on import, so the app itself shows 682 facts + 150 excerpts from 69
-documents), the 15 built-in sources, and
-the Chinese bigram + SQLite FTS5 retrieval layer. FTS5 matches *strings, not meanings*, so an English
-question retrieves nothing from Chinese entries. The UI could be translated cheaply; the data cannot.
-English support would require a bilingual data layer, which this version does not have.
+The bundled data and the SQLite FTS5 retrieval layer are designed for Chinese queries. The
+v1.1.0 release adds reviewed entries and mainland China 1.5 announcements through November 18,
+2026. See [DATA_LICENSE.md](DATA_LICENSE.md) for the release bundle and archive counts.
 
 It is also **not** an official product, and it ships no game art. Every icon is drawn in code.
 
@@ -59,7 +55,8 @@ SHA-256 hashes and byte sizes of both. Take the zip if you want the more
 compatible option: some security products and locked-down corporate accounts block the single-file
 build from unpacking itself into `%TEMP%`.
 
-Current release **v1.0.0**, bundled data snapshot **2026-09** (the app shows it on the About page).
+The latest public release is [v1.1.0](https://github.com/chaly27yhy/nte-rag/releases/tag/v1.1.0).
+See the [changelog](CHANGELOG.md) for changes.
 The byte size and SHA-256 of each artifact are listed in the Chinese README section
 「发布产物与哈希校验」 (see [`README.md`](README.md)).
 
@@ -140,8 +137,8 @@ Swapping the source list (`app/core/sources.py`) and the default topic words (`a
 enough to point the pipeline at another game or subject. Retrieval, answering, trust scoring and
 cross-source adjudication do not care what the topic is. Two things do:
 
-- The bundled knowledge base is still about *Neverness to Everness* (`seed/seed_kb.json`,
-  70 documents / 685 facts). It does not disappear when you change the topic; it turns into **wrong
+- The bundled knowledge base is still about *Neverness to Everness* (`seed/seed_kb.json`).
+  It does not disappear when you change the topic; it turns into **wrong
   evidence** for the new one. Delete it (or drop in your own seed) and re-ingest before trusting any
   local answer.
 - The collectors are game-specific. `app/core/wywyx.py` parses the character-panel fields of one
@@ -154,7 +151,7 @@ So the framework is generic, while the bundled data and the collectors are not.
 ## Development and tests
 
 ```powershell
-.venv\Scripts\python.exe tools\quality_check.py      # 704 assertions, no model, no network
+.venv\Scripts\python.exe tools\quality_check.py      # offline checks, require zero failures
 node --check app\web\app.js                          # front-end syntax gate (needs Node.js)
 .venv\Scripts\python.exe run.py --window-test         # can a native window be created?
 powershell -ExecutionPolicy Bypass -File tools\build_exe.ps1   # builds dist\
@@ -206,9 +203,8 @@ seed/seed_kb.json       the bundled knowledge base
 ## Known limitations
 
 - Chinese-only data and retrieval (see above).
-- The knowledge base is a snapshot, as accurate as its `generated_at` date. Game content changes with
-  every patch, so the snapshot ages, and individual sources may go stale or disappear. A dead source
-  fails loudly and says why; it never fabricates an answer.
+- The built-in knowledge base combines a September 2026 snapshot with later reviewed entries.
+  Game updates can make individual entries stale, and source sites may go offline.
 - Answers are only as good as the model you configure. The app does not ship or proxy a model.
 - Windows-only, and the native window depends on the system WebView2 runtime. There is no macOS/Linux
   path anywhere in the code (DPAPI key storage, WebView2 window, PowerShell packaging) and no plan for

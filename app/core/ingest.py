@@ -16,7 +16,7 @@ import logging
 import re
 from collections import deque
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from . import chunk as chunkmod
 from . import consistency
@@ -30,7 +30,7 @@ from . import trust
 from . import versioning
 from .fetch import Fetcher
 from .llm import LLMClient, LLMError
-from .search import SearchClient
+from .search import SearchClient, SearchError, classify_source, retryable_search_error, site_of
 from .sources import NARRATIVE_TAG, get_sources, iter_source_pages
 from .store import KnowledgeBase
 
@@ -184,49 +184,35 @@ def store_page(
     质量校验不过的页面**不会入库**（连切片都不存），并在返回值里给出去除原因，
     由调用方写进更新日志——避免用户以为「这个站没内容」，其实是内容被判为垃圾。
     """
+    rejected = {"doc_id": None, "changed": False, "chunks": 0, "removed_lines": 0}
     removed_lines = 0
     if validate:
         # 已证伪页面（人工复核判定整页不可信，见 app/core/curation.py）：这一层
         # **不区分来源类型**，手动添加也拒收——页面正文里的错误数值一旦入库，
         # 就会和正确来源打架，助手只能回答「两个说法互相矛盾」。
-        revoked = curation.revoked_reason(url)
+        revoked = curation.revoked_reason(url) or curation.paused_reason(url)
         if revoked:
-            return {
-                "doc_id": None,
-                "changed": False,
-                "chunks": 0,
-                "rejected": revoked,
-                "removed_lines": 0,
-            }
+            return {**rejected, "rejected": revoked, "source_rejected": True}
+        blocked = quality.normalize_domains(config.get("auto_update", "blocked_domains", []) or [])
+        if quality.is_blocked(url, blocked, include_baseline=False):
+            return {**rejected, "rejected": "该域名在你的来源黑名单中", "source_rejected": True}
         # 预置基线（字典站、视频页）：抓取与搜索那两道门之外再兜一层，
         # 保证任何入口进来的 URL 都不会把这类页面写进知识库。
         # 手动添加的来源跳过这一层：用户自己粘的地址按用户意愿处理。
         if source_type != "manual":
             baseline = quality.baseline_block_reason(url)
             if baseline:
-                return {
-                    "doc_id": None,
-                    "changed": False,
-                    "chunks": 0,
-                    "rejected": baseline,
-                    "removed_lines": 0,
-                }
+                return {**rejected, "rejected": baseline, "source_rejected": True}
         # 主题相关性闸门：只在社区来源上判定。搜索结果里经常混进与游戏无关的长文
         # （字典页、别的手游攻略），它们又长又密，光靠长度/密度/跨作品判定拦不住。
         # 官方站与 wiki 站跳过：BWIKI 的模板页、官网栏目页标题本来就不带游戏名。
         if source_type == "community":
             mismatch = quality.theme_mismatch(title, text, _theme_terms(config))
             if mismatch:
-                return {
-                    "doc_id": None,
-                    "changed": False,
-                    "chunks": 0,
-                    "rejected": mismatch,
-                    "removed_lines": 0,
-                }
+                return {**rejected, "rejected": mismatch, "source_rejected": True}
         verdict = quality.validate_page(
             title,
-            text,
+            curation.strip_gamersky_footer(url, text),
             min_chars=int(config.get("quality", "min_page_chars", 150) or 150),
             min_density=float(config.get("quality", "min_info_density", 0.35) or 0.35),
             foreign_threshold=4 if config.get("quality", "reject_foreign_games", True) else 999,
@@ -243,33 +229,30 @@ def store_page(
         removed_lines = verdict.removed_lines
 
     digest = _hash_text(text)
-    # 记下这一页是用哪个版本的抽取规则处理的（见 EXTRACTION_VERSION）。
-    page_meta = dict(meta or {})
-    page_meta[EXTRACT_VERSION_META] = EXTRACTION_VERSION
-    doc_id, changed = kb.upsert_document(
-        url=url,
-        title=title or url,
-        text_hash=digest,
-        site=(url.split("/")[2] if "//" in url else ""),
-        source_type=source_type,
-        published_at=published or "",
-        meta=page_meta,
+    pieces = chunkmod.chunk_text(
+        text,
+        size=config.get("kb", "chunk_size", 700),
+        overlap=config.get("kb", "chunk_overlap", 100),
     )
-    chunks = 0
-    if changed:
-        pieces = chunkmod.chunk_text(
-            text,
-            size=config.get("kb", "chunk_size", 700),
-            overlap=config.get("kb", "chunk_overlap", 100),
+    with kb.page_lock(url):
+        doc_id, changed = kb.upsert_document(
+            url=url,
+            title=title or url,
+            text_hash=digest,
+            site=site_of(url),
+            source_type=source_type,
+            published_at=published or "",
+            meta=meta,
+            chunks=pieces,
         )
-        chunks = kb.replace_chunks(doc_id, pieces)
     return {
         "doc_id": doc_id,
         "changed": changed,
-        "chunks": chunks,
+        "chunks": len(pieces) if changed else 0,
         "rejected": "",
         "removed_lines": removed_lines,
-        "meta": page_meta,
+        "text": text,
+        "text_hash": digest,
     }
 
 
@@ -279,19 +262,15 @@ def store_page(
 
 # 抽取规则版本号：**改变了抽取/裁决逻辑就要 +1**。
 # 「内容没变就跳过抽取」是省钱的优化，但会让新规则对既有页面永远不生效；
-# ingest_sources() 会比对库里记录的版本号，不一致就把旧页面重抽一遍。
+# 两种抽取分别记录完成版本，新版本会重抽已有页面。
 EXTRACTION_VERSION = "2"
-EXTRACT_VERSION_META = "extraction_version"
 
 
 def _extract_policy(config: Any) -> "tuple[bool, str]":
     """返回 (抽取规则升级后是否重抽, 当前生效的抽取版本)。
 
-    `quality.reextract_on_upgrade=False` 的语义是「内容没变，就别因为抽取规则
-    改过而重抽」。过去它把版本置成空串，而入库时写进 meta 的恒为
-    EXTRACTION_VERSION，于是「这一页上次用哪个版本处理过」的比对永远不成立 ——
-    每次都会把所有内容未变的页面重新喂给表格抽取与模型（花钱、重复合并、
-    计数虚高），与开关的本意正好相反。
+    `quality.reextract_on_upgrade=False` 只跳过已完成阶段的版本更新。
+    新正文和未完成阶段仍需抽取。
     """
     reextract = bool(config.get("quality", "reextract_on_upgrade", True))
     version = str(config.get("quality", "extraction_version") or EXTRACTION_VERSION)
@@ -558,18 +537,18 @@ def extract_facts(
         )
     except LLMError as error:
         stats["error"] = secrets.scrub(str(error))[:300]
+        if error.retryable:
+            stats["retry_after"] = error.retry_after
         return stats
 
     if isinstance(payload, dict):
-        payload = payload.get("facts") or payload.get("items") or []
-    if not isinstance(payload, list):
+        payload = payload.get("facts", payload.get("items"))
+    if not isinstance(payload, list) or any(not isinstance(raw, dict) for raw in payload):
         stats["error"] = "模型返回格式不是数组"
         return stats
 
     candidates: List[Dict[str, Any]] = []
     for raw in payload[:max_facts]:
-        if not isinstance(raw, dict):
-            continue
         fact_title = chunkmod.summarize(str(raw.get("title") or ""), 40).strip()
         answer = str(raw.get("answer") or "").strip()
         if not fact_title or len(answer) < 10:
@@ -621,7 +600,6 @@ def extract_facts(
         )
 
     if not candidates:
-        stats["error"] = "未抽取出有效条目"
         return stats
 
     if no_vote:
@@ -871,6 +849,74 @@ def _adjudicate_batch(llm: LLMClient, batch: Sequence[str]) -> Dict[int, Dict[st
 # ----------------------------------------------------------------------
 
 
+def _extract_page_facts(
+    kb: KnowledgeBase,
+    config: Any,
+    stored: Dict[str, Any],
+    report: Dict[str, Any],
+    llm: Optional[LLMClient],
+    *,
+    url: str,
+    title: str,
+    source_type: str,
+    topic: str,
+    published_at: str,
+    max_facts: int,
+    quality_label: str = "",
+    narrative: bool = False,
+) -> bool:
+    """补做当前正文未完成的抽取阶段，返回本次是否尝试过抽取。"""
+    reextract, version = _extract_policy(config)
+    doc_id, digest, text = stored["doc_id"], stored["text_hash"], stored["text"]
+    with kb.page_lock(url):
+        done = kb.document_extraction(doc_id, digest)
+        if done is None:
+            return False
+
+        def needs(step: str) -> bool:
+            return step not in done or (reextract and done[step] != version)
+
+        table_pending = needs("table")
+        llm_pending = llm is not None and len(text) >= 150 and needs("llm")
+        if not (table_pending or llm_pending):
+            return False
+
+        source = {
+            "url": url, "source_type": source_type, "topic": topic, "published_at": published_at,
+            "extra_tags": NARRATIVE_TAG if narrative else "",
+        }
+        try:
+            if table_pending:
+                table = store_table_facts(kb, text, title, **source)
+                kb.mark_document_extracted(doc_id, digest, "table", version)
+                report["table_facts_added"] += table["added"]
+                report["confirmed"] += table.get("confirmed", 0)
+                report["duplicates"] += table.get("duplicate", 0)
+                report["conflicts"] += table.get("conflict", 0)
+            if llm_pending:
+                facts = extract_facts(
+                    llm, kb, title=title, text=text, quality_label=quality_label,
+                    max_facts=max_facts * (2 if tables.table_density(text) >= 0.3 else 1),
+                    official_priority=bool(config.get("quality", "official_priority", True)),
+                    no_vote=narrative, **source,
+                )
+                if facts["error"]:
+                    report["errors"].append(f"{url}：{facts['error']}")
+                    if "retry_after" in facts:
+                        report["extraction_retry_after"] = facts["retry_after"]
+                else:
+                    kb.mark_document_extracted(doc_id, digest, "llm", version)
+                report["facts_added"] += facts["added"]
+                report["facts_updated"] += facts["updated"]
+                report["conflicts"] += facts["conflict"]
+                report["confirmed"] += facts.get("confirmed", 0)
+                report["duplicates"] += facts.get("duplicate", 0)
+                report["ungrounded"] += facts.get("ungrounded", 0)
+        except Exception as error:  # noqa: BLE001
+            report["errors"].append(f"{url}：{secrets.scrub(str(error))[:200]}")
+        return True
+
+
 def ingest_sources(
     kb: KnowledgeBase,
     config: Any,
@@ -913,16 +959,15 @@ def ingest_sources(
             except Exception:
                 pass
 
-    catalog = get_sources()
+    catalog = get_sources(include_disabled=bool(source_ids))
     if source_ids:
         catalog = [item for item in catalog if item["id"] in set(source_ids)]
 
-    # 抽取规则升级后，内容未变的旧页面也要重抽一次，否则抽取逻辑的改进永远
-    # 追不上既有知识库。比对的是「这一页上次用哪个版本处理的」，所以不会
-    # 每次都重复花钱；quality.reextract_on_upgrade=False 可以关掉这个行为。
-    reextract, extract_version = _extract_policy(config)
-
     for source in catalog:
+        if source.get("paused_reason"):
+            report["errors"].append(f"{source['name']}：{source['paused_reason']}")
+            report["dropped"] += 1
+            continue
         progress(f"开始处理数据源：{source['name']}")
         # 只留最近的若干条：一个被 WAF 全拦的来源会在这里堆上几百条字符串，
         # 而报告里最多只展示 5 条 + 一个总数。
@@ -971,10 +1016,10 @@ def ingest_sources(
                     meta={**page.meta, "quality": page.quality},
                 )
                 report["cleaned_lines"] += int(stored.get("removed_lines") or 0)
-                # 结构化字段条目先入库：它们是「字段名→值」，不依赖切块质量，
-                # 即使这一页因为正文过短/密度不足被过滤，字段本身仍然有价值。
+                # 通过来源校验后，结构化字段可以独立于正文切片入库。
+                # 对正文过短的 wiki 模板，结构化字段仍能提供有效证据。
                 api_facts = (page.meta or {}).get("api_facts") or []
-                if api_facts:
+                if api_facts and not stored.get("source_rejected"):
                     api_stats = store_api_facts(
                         kb,
                         api_facts,
@@ -995,60 +1040,13 @@ def ingest_sources(
                     continue
                 report["pages"] += 1
                 report["chunks"] += stored["chunks"]
-                # 内容没变、且这一页已经由**当前版本**的抽取规则处理过，才跳过抽取。
-                # 只看 changed 的话，抽取规则的改进永远不会应用到已入库的页面。
-                page_version = str((stored.get("meta") or {}).get(EXTRACT_VERSION_META) or "")
-                if not stored["changed"] and (not reextract or page_version == extract_version):
-                    report["skipped"] += 1
-                    continue
-                if not stored["changed"]:
-                    report["reextracted"] += 1
-                # 先用确定性规则把表格逐行转成条目（数值类知识的主要来源，不花模型钱）
-                table_stats = store_table_facts(
-                    kb,
-                    page.text,
-                    page.title,
-                    url=page.url,
-                    source_type=page.source_type,
-                    topic=source["name"],
-                    published_at=page.published,
-                    extra_tags=extra_tags,
+                extracted = _extract_page_facts(
+                    kb, config, stored, report, llm, url=page.url, title=page.title,
+                    source_type=page.source_type, topic=source["name"], published_at=page.published,
+                    quality_label=page.quality, max_facts=max_facts_per_page, narrative=narrative,
                 )
-                report["table_facts_added"] += table_stats["added"]
-                report["confirmed"] += table_stats.get("confirmed", 0)
-                report["duplicates"] += table_stats.get("duplicate", 0)
-                report["conflicts"] += table_stats.get("conflict", 0)
-                if llm is not None:
-                    try:
-                        # 表格密集的页面给模型更多额度，避免数值被「信息量最大」的规则挤掉
-                        budget = max_facts_per_page
-                        if tables.table_density(page.text) >= 0.3:
-                            budget = max_facts_per_page * 2
-                        stats = extract_facts(
-                            llm,
-                            kb,
-                            title=page.title,
-                            text=page.text,
-                            url=page.url,
-                            source_type=page.source_type,
-                            topic=source["name"],
-                            quality_label=page.quality,
-                            max_facts=budget,
-                            official_priority=bool(config.get("quality", "official_priority", True)),
-                            published_at=page.published,
-                            extra_tags=extra_tags,
-                            no_vote=narrative,
-                        )
-                        report["facts_added"] += stats["added"]
-                        report["facts_updated"] += stats["updated"]
-                        report["conflicts"] += stats["conflict"]
-                        report["confirmed"] += stats.get("confirmed", 0)
-                        report["duplicates"] += stats.get("duplicate", 0)
-                        report["ungrounded"] += int(stats.get("ungrounded") or 0)
-                        if stats["error"]:
-                            report["errors"].append(f"{page.url}：{stats['error']}")
-                    except Exception as error:  # noqa: BLE001
-                        report["errors"].append(secrets.scrub(str(error))[:200])
+                if not stored["changed"]:
+                    report["reextracted" if extracted else "skipped"] += 1
                 progress(
                     f"已入库 {report['pages']} 页，新增条目 {report['facts_added']}",
                     pages=report["pages"],
@@ -1107,10 +1105,14 @@ def update_topic(
     max_pages: int = 5,
     max_facts_per_page: int = 4,
     on_progress: Optional[Any] = None,
+    *,
+    on_attempt: Optional[Callable[[], None]] = None,
 ) -> Dict[str, Any]:
     """按主题联网搜索 → 抓取 → 入库 → 抽取条目。"""
     stats = {
         "topic": topic,
+        "retry_required": False,
+        "retry_after": 0.0,
         # 成功取到正文的页数（含内容没变、这次没有写入的页面）
         "fetched": 0,
         # 真正写入或更新的页数：内容没变的重抓不算
@@ -1122,13 +1124,15 @@ def update_topic(
         "chunks": 0,
         "facts_added": 0,
         "facts_updated": 0,
+        "ungrounded": 0,
         "table_facts_added": 0,
         "api_facts_added": 0,
         "confirmed": 0,
         "duplicates": 0,
         "conflicts": 0,
-        # 内容没变、无需重抽的页数
+        # 文档正文没变，其中有些页面会补做未完成的抽取。
         "skipped": 0,
+        "reextracted": 0,
         # 清洗层判为垃圾/与主题无关而拒收的页数
         "filtered": 0,
         "errors": [],
@@ -1142,26 +1146,66 @@ def update_topic(
             except Exception:
                 pass
 
-    # 与 ingest_sources 用同一个策略函数，避免两条入库路径口径不一致
-    reextract, extract_version = _extract_policy(config)
+    retry_key = f"topic_extraction_retry:{_hash_text(topic)}"
+    saved = json.loads(kb.get_meta(retry_key, "") or "{}")
+    pending = {}
+    network_retry = False
+
+    def extract(job: Dict[str, Any]) -> bool:
+        stored = job["stored"]
+        stats.pop("extraction_retry_after", None)
+        attempted = _extract_page_facts(kb, config, stored, stats, llm, **job["source"])
+        delay = stats.pop("extraction_retry_after", None)
+        if delay is not None:
+            pending[stored["doc_id"]] = job
+            stats["retry_after"] = max(stats["retry_after"], delay)
+        return attempted
+
+    def finish() -> Dict[str, Any]:
+        stats["retry_required"] = network_retry or bool(pending)
+        if saved or pending:
+            retry = {"jobs": list(pending.values()), "network_retry": network_retry} if pending else {}
+            kb.set_meta(retry_key, json.dumps(retry, ensure_ascii=False) if retry else "")
+        return stats
+
+    blocked = quality.normalize_domains(config.get("auto_update", "blocked_domains", []) or [])
+    for job in saved.get("jobs", []):
+        stored = job["stored"]
+        document = kb.get_document(stored["doc_id"])
+        if (not document or document["status"] != "active" or document["content_hash"] != stored["text_hash"]
+            or curation.paused_reason(document["url"]) or curation.revoked_reason(document["url"])
+            or quality.is_blocked(document["url"], blocked, include_baseline=False)):
+            continue
+        if llm is None:
+            pending[stored["doc_id"]] = job
+            continue
+        progress(f"补做资料抽取：{job['source']['title']}")
+        if extract(job):
+            stats["reextracted"] += 1
+    if saved and not saved.get("network_retry"):
+        return finish()
 
     try:
         results = search.search(topic, max_results=max(max_pages * 2, 6))
     except Exception as error:  # noqa: BLE001
-        stats["errors"].append(secrets.scrub(str(error))[:300])
-        stats["errors"].extend(search.last_errors[:3])
-        return stats
+        network_retry = retryable_search_error(error)
+        details = search.last_errors if isinstance(error, SearchError) else []
+        stats["errors"].extend(secrets.scrub(detail)[:300] for detail in (details or [str(error)]))
+        return finish()
 
     stats["results"] = [item.to_dict() for item in results[:10]]
     if not results:
         stats["errors"].append("搜索无结果")
-        return stats
+        return finish()
 
-    from .search import classify_source
-
-    for result in results[: max(1, max_pages)]:
+    for result in results[: max(0, max_pages)]:
         progress(f"抓取：{result.title[:40] or result.url}")
+        if on_attempt:
+            on_attempt()
         fetched = fetcher.fetch(result.url)
+        if getattr(fetched, "retryable", False):
+            network_retry = True
+            stats["retry_after"] = max(stats["retry_after"], getattr(fetched, "retry_after", 0))
         if fetched.skipped:
             # 主动跳过（robots 规则、来源黑名单、站点冷却）不是失败：以前它和网络错误
             # 一起算进「失败」和「错误」，报告里读起来像是抓取出了问题。
@@ -1175,13 +1219,16 @@ def update_topic(
                 stats["errors"].append(f"{result.url}：{fetched.error}")
             continue
         stats["fetched"] += 1
+        url = fetched.final_url or result.url
+        title = fetched.title or result.title
+        source_type = classify_source(url)
         stored = store_page(
             kb,
             config,
-            url=fetched.final_url or result.url,
-            title=fetched.title or result.title,
+            url=url,
+            title=title,
             text=fetched.text,
-            source_type=classify_source(result.url),
+            source_type=source_type,
             published=fetched.published,
             meta={"provider": result.provider, "topic": topic, "snippet": result.snippet[:300]},
         )
@@ -1190,54 +1237,23 @@ def update_topic(
             # 再塞进错误列表会让同一个页面被计两次。
             stats["filtered"] += 1
             continue
-        # 与 ingest_sources 同一判断：内容没变但抽取规则升级过，也要重抽一次
-        page_version = str((stored.get("meta") or {}).get(EXTRACT_VERSION_META) or "")
-        if not stored["changed"] and (not reextract or page_version == extract_version):
-            # 内容没变：页面早就在库里，不算新页面，也不产生新切片
+        if stored["changed"]:
+            stats["pages"] += 1
+            stats["chunks"] += stored["chunks"]
+        else:
             stats["skipped"] += 1
-            continue
-        stats["pages"] += 1
-        stats["chunks"] += stored["chunks"]
-        table_stats = store_table_facts(
-            kb,
-            fetched.text,
-            fetched.title or result.title,
-            url=fetched.final_url or result.url,
-            source_type=classify_source(result.url),
-            topic=topic,
-            published_at=fetched.published,
-        )
-        stats["table_facts_added"] += table_stats["added"]
-        stats["confirmed"] += table_stats.get("confirmed", 0)
-        stats["duplicates"] += table_stats.get("duplicate", 0)
-        stats["conflicts"] += table_stats.get("conflict", 0)
-        if llm is not None:
-            try:
-                budget = max_facts_per_page
-                if tables.table_density(fetched.text) >= 0.3:
-                    budget = max_facts_per_page * 2
-                fact_stats = extract_facts(
-                    llm,
-                    kb,
-                    title=fetched.title or result.title,
-                    text=fetched.text,
-                    url=fetched.final_url or result.url,
-                    source_type=classify_source(result.url),
-                    topic=topic,
-                    max_facts=budget,
-                    official_priority=bool(config.get("quality", "official_priority", True)),
-                    published_at=fetched.published,
-                )
-                stats["facts_added"] += fact_stats["added"]
-                stats["facts_updated"] += fact_stats["updated"]
-                stats["conflicts"] += fact_stats["conflict"]
-                stats["confirmed"] += fact_stats.get("confirmed", 0)
-                stats["duplicates"] += fact_stats.get("duplicate", 0)
-                if fact_stats["error"]:
-                    stats["errors"].append(f"{result.url}：{fact_stats['error']}")
-            except Exception as error:  # noqa: BLE001
-                stats["errors"].append(secrets.scrub(str(error))[:200])
-    return stats
+        if stored["doc_id"] in pending:
+            if pending[stored["doc_id"]]["stored"]["text_hash"] == stored["text_hash"]:
+                continue
+            del pending[stored["doc_id"]]
+        job = {
+            "stored": {key: stored[key] for key in ("doc_id", "text_hash", "text")},
+            "source": {"url": url, "title": title, "source_type": source_type, "topic": topic,
+                       "published_at": fetched.published, "max_facts": max_facts_per_page},
+        }
+        if extract(job) and not stored["changed"]:
+            stats["reextracted"] += 1
+    return finish()
 
 
 # ----------------------------------------------------------------------
@@ -1254,6 +1270,39 @@ def seed_fingerprint(seed_path: Any) -> str:
     return hashlib.sha1(data).hexdigest()[:16]
 
 
+def _apply_seed_observation_version(kb: KnowledgeBase, fact: Dict[str, Any]) -> bool:
+    """为同一份实拍补回版本，保留不同来源和不同读数的记录。"""
+    marker = "客户端实拍复核"
+    tags = str(fact.get("tags") or "")
+    version = str(fact.get("version") or "")[:16]
+    if (
+        not version or marker not in tags or fact.get("source_type") != "manual"
+        or fact.get("extraction") != "manual" or fact.get("status", "active") != "active"
+    ):
+        return False
+
+    answer = fact["answer"]
+    without_version = dedupe.normalize_text(versioning.VERSION_RE.sub("", answer))
+    for existing in kb.find_facts_by_title(fact["title"], limit=6):
+        if (
+            existing["source_url"] != fact.get("source_url")
+            or existing["source_type"] != "manual"
+            or existing["extraction"] != "manual"
+            or existing["status"] != "active"
+            or marker not in existing["tags"]
+        ):
+            continue
+        if existing["version"] == version and existing["answer"] == answer:
+            return True
+        if not existing["version"] and dedupe.normalize_text(existing["answer"]) == without_version:
+            kb.update_fact(
+                existing["id"], answer=answer, tags=tags, version=version,
+                confidence=fact["confidence"],
+            )
+            return True
+    return False
+
+
 def load_seed(kb: KnowledgeBase, config: Any, seed_path: Any, on_progress: Optional[Any] = None) -> Dict[str, Any]:
     """把随程序分发的种子知识库导入本地库。
 
@@ -1262,7 +1311,8 @@ def load_seed(kb: KnowledgeBase, config: Any, seed_path: Any, on_progress: Optio
     （曾经的实现只看一个 `seed_loaded=1` 标记，升级等于白升）。
     重复导入交给 SimHash 去重，不会把已有条目复制一遍。
     """
-    report = {"documents": 0, "facts": 0, "duplicates": 0, "skipped": False, "failed": 0, "revoked": 0}
+    report = {"documents": 0, "facts": 0, "duplicates": 0, "skipped": False,
+              "failed": 0, "revoked": 0, "paused": 0}
     path = getattr(seed_path, "exists", None) and seed_path
     if not path or not path.exists():
         report["skipped"] = True
@@ -1279,19 +1329,22 @@ def load_seed(kb: KnowledgeBase, config: Any, seed_path: Any, on_progress: Optio
         if curation.revoked_reason(document.get("url", "")):
             report["revoked"] += 1
             continue
+        if curation.paused_reason(document.get("url", "")):
+            report["paused"] += 1
+            continue
         try:
-            doc_id, _changed = kb.upsert_document(
-                url=document["url"],
-                title=document.get("title", ""),
-                text_hash=document.get("content_hash") or _hash_text(document.get("text", "")),
-                site=document.get("site", ""),
-                source_type=document.get("source_type", "seed"),
-                published_at=document.get("published_at", ""),
-                meta={**(document.get("meta") or {}), "seeded": True},
-            )
-            chunks = document.get("chunks") or []
-            if chunks:
-                kb.replace_chunks(doc_id, chunks)
+            url = document["url"]
+            with kb.page_lock(url):
+                kb.upsert_document(
+                    url=url,
+                    title=document.get("title", ""),
+                    text_hash=document.get("content_hash") or _hash_text(document.get("text", "")),
+                    site=document.get("site", ""),
+                    source_type=document.get("source_type", "seed"),
+                    published_at=document.get("published_at", ""),
+                    meta={**(document.get("meta") or {}), "seeded": True},
+                    chunks=document.get("chunks") or None,
+                )
             report["documents"] += 1
         except Exception:
             # 逐条失败要计数：见文件末尾对 seed_fingerprint 的说明——
@@ -1302,12 +1355,19 @@ def load_seed(kb: KnowledgeBase, config: Any, seed_path: Any, on_progress: Optio
     for fact in payload.get("facts") or []:
         # 条目按来源 URL 过滤：被证伪的页面抽取出来的字段同样不可信
         # （种子里的「薄荷·生日 8月20日」就是这么来的）。
-        if curation.revoked_reason(fact.get("source_url", "")):
+        url = fact.get("source_url", "")
+        title = fact.get("title", "")
+        if curation.revoked_reason(url) or curation.revoked_fact(url, title):
             report["revoked"] += 1
             continue
+        if curation.source_paused(url, fact.get("tags", "")):
+            report["paused"] += 1
+            continue
         try:
-            title = fact.get("title", "")
             answer = fact.get("answer", "")
+            if _apply_seed_observation_version(kb, fact):
+                report["duplicates"] += 1
+                continue
             # 去重：升级版本会重新导入一次种子，而 add_fact 是纯 INSERT，
             # 不做这步就会把同一批条目复制一遍（文档层有 upsert，条目层没有）。
             # 两层判定：SimHash 兜跨标题的近似重复，同标题的用 dedupe 判关系。

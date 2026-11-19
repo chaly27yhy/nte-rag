@@ -13,9 +13,13 @@
 
 import importlib
 import pkgutil
+import sys
 from pathlib import Path
 
 ROOT = Path(SPECPATH)  # noqa: F821 - SPECPATH 由 PyInstaller 注入
+sys.path.insert(0, str(ROOT.resolve()))
+
+from tools.release_seed import write_release_seed
 
 
 def submodules(package_name):
@@ -53,12 +57,11 @@ def data_files(package_name):
 datas = [
     (str(ROOT / "app" / "web"), "app/web"),
 ]
-# 种子库只带发布用的 seed_kb.json；不把 seed_kb.before_*.json / seed_kb.prev.json 这些
-# 对比基准打进发行包（它们只是本仓库的 A/B 基准，装进 exe 既占体积又容易被误认为有多套库）。
-for _seed in sorted((ROOT / "seed").glob("*.json")):
-    if _seed.name != "seed_kb.json":
-        continue
-    datas.append((str(_seed), "seed"))
+# 仓库种子保留审计档案，发行包只使用构建目录中的导出文件。
+_archive = ROOT / "seed" / "seed_kb.json"
+if _archive.is_file():
+    _release_seed = write_release_seed(_archive, ROOT / "build" / "release-seed" / "onedir" / _archive.name)
+    datas.append((str(_release_seed), "seed"))
 for _package in ("trafilatura", "justext", "dateparser", "htmldate", "courlan"):
     datas += data_files(_package)
 

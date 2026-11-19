@@ -66,7 +66,16 @@ class SearchResult:
 
 
 class SearchError(RuntimeError):
-    pass
+    def __init__(self, message: str, *, retryable: bool = False) -> None:
+        super().__init__(message)
+        self.retryable = retryable
+
+
+def retryable_search_error(error: Exception) -> bool:
+    return (
+        isinstance(error, (httpx.TransportError, TimeoutError, ConnectionError))
+        or (isinstance(error, SearchError) and error.retryable)
+    )
 
 
 def classify_source(url: str) -> str:
@@ -134,27 +143,26 @@ class SearchClient:
         self.last_errors = []
         order = self._provider_order()
         collected: List[SearchResult] = []
+        retryable = False
         for provider in order:
             try:
                 results = self._run_provider(provider, query, limit)
             except Exception as error:  # noqa: BLE001
+                retryable |= retryable_search_error(error)
                 self.last_errors.append(f"{provider}: {secrets.scrub(str(error))[:200]}")
                 continue
             if results:
-                collected.extend(results)
+                kept = [item for item in results if not quality.is_blocked(item.url, self.blocked_domains)]
+                if len(kept) != len(results):
+                    self.last_errors.append(f"已按来源规则过滤 {len(results) - len(kept)} 条搜索结果")
+                collected.extend(kept)
             if len(_dedupe(collected)) >= limit:
                 break
             if provider not in FREE_PROVIDERS:
                 continue
         merged = _dedupe(collected)
-        # 用户在黑名单里的域名直接不给出来，避免它们出现在引用里、也避免被抓取
-        if self.blocked_domains:
-            kept = [item for item in merged if not quality.is_blocked(item.url, self.blocked_domains)]
-            if len(kept) != len(merged):
-                self.last_errors.append(f"已按来源黑名单过滤 {len(merged) - len(kept)} 条搜索结果")
-            merged = kept
         if not merged and self.last_errors:
-            raise SearchError("；".join(self.last_errors))
+            raise SearchError("；".join(self.last_errors), retryable=retryable)
         return merged[: max(limit, 1)]
 
     def _provider_order(self) -> List[str]:
@@ -297,11 +305,15 @@ class SearchClient:
     def _duckduckgo(self, query: str, limit: int) -> List[SearchResult]:
         try:
             from ddgs import DDGS  # type: ignore
+            from ddgs.exceptions import RatelimitException, TimeoutException
         except Exception as error:  # pragma: no cover
             raise SearchError(f"未安装 ddgs 组件：{error}") from error
         results: List[SearchResult] = []
-        with DDGS(timeout=self.timeout) as engine:  # type: ignore[call-arg]
-            rows = engine.text(query, region="cn-zh", max_results=limit) or []
+        try:
+            with DDGS(timeout=self.timeout) as engine:  # type: ignore[call-arg]
+                rows = engine.text(query, region="cn-zh", max_results=limit) or []
+        except (RatelimitException, TimeoutException) as error:
+            raise SearchError(str(error), retryable=True) from error
         for row in rows:
             url = row.get("href") or row.get("url") or ""
             if not url:
@@ -375,7 +387,9 @@ def _check(response: httpx.Response, provider: str) -> None:
         429: "触发限流",
     }
     hint = hints.get(response.status_code, "")
-    raise SearchError(secrets.scrub(f"[{provider}] HTTP {response.status_code} {hint} {detail}"))
+    status = response.status_code
+    raise SearchError(secrets.scrub(f"[{provider}] HTTP {status} {hint} {detail}"),
+                      retryable=status in (408, 429) or status >= 500)
 
 
 def _dedupe(results: Sequence[SearchResult]) -> List[SearchResult]:

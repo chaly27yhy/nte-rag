@@ -128,7 +128,7 @@
           <textarea id="question" rows="2" maxlength="4000" placeholder="问点什么，例如：异环里薄荷是谁？她的技能是什么？（Enter 发送，Shift+Enter 换行）"></textarea>
           <div class="chat-controls">
             <div class="row">
-              <label class="switch"><input type="checkbox" id="allow-web" checked /> 资料不足时自动联网</label>
+              <label class="switch"><input type="checkbox" id="allow-web" /> 本次允许联网补查</label>
               <span class="phase hidden" id="chat-phase"><span class="dot"></span><span id="chat-phase-text">正在检索…</span></span>
             </div>
             <div class="row">
@@ -262,13 +262,12 @@
         </div>
         <p class="muted small">
           全部为服务端渲染页面或公开 API，不含需要浏览器渲染的站点；抓取会遵守各站 robots.txt。
-          首次使用建议先跑一次「官网 + WIKI」把种子资料补齐。
+          可先选官方公告和可用的 Wiki，补充本地资料。
         </p>
         <p class="source-policy" id="source-policy">
-          <b>来源可靠性说明（2026-09-21 人工审核裁定）：</b>
-          BWIKI 异环 wiki 目前处于<b>施工中</b>、编辑无 24 小时审核 —— 该站事实统一标
-          「施工中/可靠性待确认」，生命/攻击等<b>数值字段不跨源比对</b>，一旦冲突只做字段级存疑，
-          待施工结束后抽样复核；官网「角色介绍」类纯叙事文本单列为「叙事/世界观来源」，
+          <b>来源可靠性说明</b>
+          BWIKI 异环专区仍在<b>施工中</b>，复核发现数据错误，暂时停用。已采集的资料保留供复核。
+          官网「角色介绍」类纯叙事文本单列为「叙事/世界观来源」，
           只用于世界观、剧情与角色背景问答，<b>不参与任何数值/字段投票</b>，引用时会标注来源类型。
         </p>
         <div class="list" id="source-list"></div>
@@ -430,7 +429,7 @@
       <div class="card">
         <div class="card-head"><h3>回答与知识库</h3></div>
         <div class="form-grid">
-          <label class="switch inline"><input type="checkbox" id="answer-auto-web" /> 本地资料不足时自动联网</label>
+          <label class="switch inline"><input type="checkbox" id="answer-auto-web" /> 默认允许联网补查</label>
           <label>联网触发阈值<input id="answer-threshold" type="number" step="0.05" min="0" max="1" /></label>
           <label>单次最多抓取页数<input id="answer-maxpages" type="number" min="1" max="10" /></label>
           <label>检索条数 top_k<input id="kb-topk" type="number" min="3" max="30" /></label>
@@ -498,8 +497,8 @@
             也可以手动补录一条，或删掉不需要的。</li>
           <li><b>自动更新</b>：按主题抓公开网页补资料，能看到每轮更新报告，把不想再抓的站点加进来源黑名单。</li>
           <li><b>设置</b>：接自己的模型 API、调检索与质量参数、换壁纸、安排自动更新计划。</li>
-          <li><b>内置资料</b>：8 个公开站点的 70 篇文档、685 条知识条目与 152 段原文摘录（2026-09 的快照）。
-            其中 1 篇已复核判为整页造假、导入时会被跳过，所以程序里实际看到的是 69 篇 / 150 段 / 682 条。</li>
+          <li><b>内置资料</b>来自 2026 年 9 月基础快照和后续复核。国服 1.5 公告收录至 2026 年 11 月 18 日。
+            程序会过滤已撤回和暂停使用的来源。当前可用数量见「知识库」页。</li>
         </ul>
       </div>
       <div class="card">
@@ -519,7 +518,7 @@
       <div class="card">
         <div class="card-head"><h3>资料会过期</h3></div>
         <ul class="bullets">
-          <li>内置资料是 <b>2026-09 的快照</b>，游戏更新后部分内容会滞后；个别来源也可能停更或下线。</li>
+          <li>游戏更新后，内置资料中的活动、获取方式和数值可能过期。个别来源也可能停更或下线。</li>
           <li>条目上的可信度是算出来的（来源等级 / 提取方式 / 多源一致性 / 时效），<b>不是模型自评</b>。</li>
           <li>抓不到页面或站点改版时，程序会<b>明确报错并写进更新报告</b>，不会编答案填空。</li>
           <li>复核发现整页造假的来源会<b>按页面撤回</b>：它的原文切片与条目一起退出检索（记录留在库里备查），
@@ -530,6 +529,8 @@
       <div class="card">
         <div class="card-head"><h3>运行信息</h3></div>
         <div id="about-paths" class="kv"></div>
+        <p id="seed-import-status" class="muted small" role="status" tabindex="-1"></p>
+        <button id="seed-retry" class="ghost hidden" type="button" disabled>重试导入</button>
       </div>
       <div class="card">
         <div class="card-head"><h3>你的数据在哪、会发给谁</h3></div>

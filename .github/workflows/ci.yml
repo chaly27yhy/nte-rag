@@ -78,11 +78,19 @@ jobs:
           $skipCount = ([regex]::Matches($text, '跳过：')).Count
           Write-Host "机制自检通过：$summary；另有 $skipCount 处未参与比对（依赖不入库的本地产物）"
 
-      - name: 保留自检日志
+      - name: 核对内置库的离线来源基线
+        run: python tools/run_eval.py --retrieval-only --tag source-baseline
+
+      - name: 核对准确性题的证据是否都能入选
+        run: python tools/run_eval.py --retrieval-only --set eval/accuracy_cases.json --seed eval/accuracy_cases.json --tag accuracy-cases
+
+      - name: 保留自检日志与离线评测报告
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: quality-check-log
-          path: quality-check.log
+          path: |
+            quality-check.log
+            eval/report-*.json
           if-no-files-found: ignore
           retention-days: 7

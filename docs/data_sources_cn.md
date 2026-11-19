@@ -1,5 +1,115 @@
 # 《异环》(Neverness to Everness) 中文数据源清单
 
+## 2026-11-20 国服 1.5 公告补录
+
+复核北京时间 11 月 20 日所见的[官网公告列表](https://yh.wanmei.com/m/news/gamebroad/)，本轮收录至官网 11 月 18 日发布的提名答谢。内置库保存四篇短摘要和同源结构化条目。
+
+| 来源 | 补录范围 |
+|---|---|
+| [1.5「致电，空想迷数」版本公告](https://yh.wanmei.com/m/news/gamebroad/20261104/264868.html) | 官网 11 月 4 日发布，国服 11 月 5 日维护结束后进入 1.5。补录维护与补偿、首期限时棋盘和弧盘、剧情、副本、资源溢出与活动排期。 |
+| [11 月 6 日不停服更新](https://yh.wanmei.com/m/news/gamebroad/20261106/264932.html) | 补录预计维护时段、曳尔沐觉醒与技能修复，以及正篇和多人副本修复。 |
+| [11 月 13 日不停服更新](https://yh.wanmei.com/m/news/gamebroad/20261113/265046.html) | 补录预计维护时段、曳尔沐日语语音及解锁、运通全城与同城派送修复、钱包道具更名。 |
+| [11 月 18 日 TGA 提名答谢](https://yh.wanmei.com/m/news/gamebroad/20261118/265103.html) | 补录环石奖励、游戏内邮件发放时间与领用条件。 |
+
+公告中的维护结束时刻按预估记录。棋盘、研募、折扣、活动及答谢各按公告规定的时间或领取条件使用。
+
+同轮复核发现，游民星空六篇摘录包含相同的平台和广告页脚，由此抽出的四条平台事实漏掉 Mac 和鸿蒙。问答与发行包过滤该页脚及四条事实，保留可用攻略正文。国服公测平台以[完美世界年报](https://static.cninfo.com.cn/finalpage/2026-04-28/1225207317.PDF)为依据，并与[国服公测定档公告](https://yh.wanmei.com/m/news/gamebroad/20260225/261034.html)交叉核对。
+
+## 2026-11-19 来源复查
+
+BWIKI 异环专区暂停采集和引用。站点仍提示部分页面在施工，维护者已复核发现数据错误。已有 SQLite 记录及原始种子快照保留供审计。
+已知混入 BWIKI 内容、无法按原始来源拆分的旧条目，也暂停使用。恢复独立字段时要回查原始页面。
+
+本轮对几家社区站点做了小样本核对。以下站点仍为候选，未加入默认采集。
+
+| 候选 | 抽查结果 | 适合补查的内容 |
+|---|---|---|
+| [环世全鉴](https://wiki.mysqil.com/characters/jiuyuan) | 九原页的静态正文可读，面板有等级选择。其「关于」页列出其他上游站点和 CC BY-NC-SA 4.0 标记 | 优先核对中文角色技能、材料、弧盘获取。与它的上游页面相同的记录按同一来源链对待。[来源与许可声明](https://wiki.mysqil.com/about) |
+| [渡鸦攻略](https://mygamewiki.com/) | 首页有角色、弧盘、空幕和驱动块。九原详情的文本探针未返回完整角色数据 | 继续检查具体条目的正文或站点公开接口，确认字段及使用条件后再考虑接入。[九原详情样本](https://mygamewiki.com/gallery/character-detail.html?name=%E4%B9%9D%E5%8E%9F) |
+| [NTE 异环攻略站](https://ntegame.net/zh-cn/guides/version-1-5-preview/) | 中文样本可读，版本整理提醒区分国服和国际服。角色页高等级面板与另两家存在差异 | 用于发现官方链接和补查活动时程。实际日期以上游公告为准。[九原角色页](https://ntegame.net/zh-cn/characters/jiuyuan/) |
+| [NTEWiki](https://nte-wiki.online/characters/jiuyuan) 和 [Prydwen](https://www.prydwen.gg/neverness-to-everness/characters/jiuyuan) | 前者英文九原页可读。后者页面有更新跟踪，但本机直连样本返回 403 | 作为手工交叉线索，保留英文名称、版本和区服。Prydwen 暂不考虑自动抓取 |
+
+九原的样本说明了为什么要逐字段复核。环世全鉴标为 Lv.80 的基础生命是 15,635，NTEWiki 的 LVL 80 为 9,901，NTE 异环攻略站标为满级的是 15,377。
+各站没有在这些样本中给出足以对齐的游戏版本、区服及培养条件。三组数值都不能直接补上「初始生命」字段。
+维护者提供的 1.5 版本九原 1 级游戏面板读数为生命 1290、攻击 82、防御 75，与玩一玩历史快照一致。实拍条目补齐了 `api002` 和 `api003` 的攻击力与生命值证据。
+关于等级、弧盘、空幕及技能等级的核对边界见[实拍复核](consistency_review.md#九原-1-级面板实拍复核)。
+版本、活动和改动先核对[国服官方公告](https://yh.wanmei.com/news/index1.html)。数值优先记录带条件的游戏内实测或可追溯的官方资料。
+
+### 首批 5 题来源试点
+
+从 BWIKI 停用后暂缓的题中抽查了 5 道。通过复核的字段通过 `tools/manual_facts.py` 写入内置种子，供离线检索引用。每条保留具体页面和适用范围，来源站点按页面复核。
+
+| 原题 | 复核结论 | 来源 |
+|---|---|---|
+| `api020` 不屈之绵分类 | 等离子。页面未注明游戏版本和区服，仅采用分类字段。 | [环世全鉴](https://wiki.mysqil.com/weapons/buquzhimian)、[异环信息站](https://www.ntestation.com/%E4%B8%8D%E5%B1%88%E4%B9%8B%E7%BB%B5) |
+| `q001` 成功的第一步稀有度 | 国服公测资料标为 B 级。 | [游侠手游公测日图鉴](https://m.ali213.net/news/gl2604/1766607.html)、[异环弧盘 Wiki](https://nteguide.com/zh/weapons/first-step-to-success/) |
+| `q002` 成功的第一步变轨效果 | 国服公测资料的基础调弧效果为攻击力提高 12%，持续 10 秒，20 秒内最多触发一次。另一图鉴列有精炼区间，因此保留基础档位。 | [游侠手游公测日图鉴](https://m.ali213.net/news/gl2604/1766607.html)、[异环弧盘 Wiki](https://nteguide.com/zh/weapons/first-step-to-success/) |
+| `api018` 银河暂留获取 | 国服公测登录活动曾在第 10 天发放。当前能否领取及当前获取途径待核实。 | [TapTap 公测攻略](https://www.taptap.cn/moment/796429909030338680)、[NTE 异环攻略站](https://ntegame.net/zh-cn/guides/arc-system-deep-dive/) |
+| `q011` 甲硬币获取 | 国服实拍确认四个入口。正式关卡名为「胡迪尼的魔术舞台·硬币记」。 | [客户端实拍转录](consistency_review.md#甲硬币与不屈之绵客户端实拍复核)、[GameWith 获取攻略](https://gamewith.net/nte/74479) |
+
+后续 1.5 版本实拍同时补齐 `q010` 的甲硬币类型及 `api021` 的不屈之绵 1 阶效果。另记录不屈之绵 80 级弧盘面板。公开链接供交叉查证，中文界面名称与培养条件以转录为准。[客户端实拍转录](consistency_review.md#甲硬币与不屈之绵客户端实拍复核)
+
+### 银河暂留与最后一朵玫瑰
+
+| 弧盘 | 核对范围 | 公开资料 |
+|---|---|---|
+| 银河暂留 | `api017` 等离子。`api019` 的 1 阶「水星图」为魂属性异能伤害 +12%，暴击伤害每层 +2%、持续 5 秒，最多 10 层，每 0.1 秒最多叠一层。 | [异环信息站](https://www.ntestation.com/%E9%93%B6%E6%B2%B3%E6%9A%82%E7%95%99) · [GameWith 英文调弧表](https://gamewith.net/nte/74812) |
+| 最后一朵玫瑰 | `api013` 液态。`api014` 的 1 阶「落拓玫瑰」为攻击力 +14%，暗棘每层暴击伤害 +6%、持续 3 秒，对已倾陷敌人造成伤害时可延长其倾陷 3 秒。 | [异环信息站](https://www.ntestation.com/%E6%9C%80%E5%90%8E%E4%B8%80%E6%9C%B5%E7%8E%AB%E7%91%B0) · [GameWith 英文调弧表](https://gamewith.net/nte/74451) |
+
+异环信息站两条弧盘页面标注 2026 年 8 月 10 日编辑，GameWith 英文详情页标注 9 月 3 日更新。这些是页面日期，图鉴本身未标注对应游戏版本。GameWith 简中和英文页面来自同一站点。[银河暂留简中图鉴](https://gamewith.ai/nte/zh-CN/arc/stellar-veil) · [最后一朵玫瑰简中图鉴](https://gamewith.ai/nte/zh-CN/arc/the-last-rose)
+
+### 按已核公告沿用数值
+
+角色面板、技能倍率和弧盘效果等稳定数值，有可信旧值且培养条件一致时，核对所问区服在这段版本期间的相关更新公告。已核公告未列出调整时可沿用原值，答复说明依据和覆盖范围。公告列出调整时，按生效时间用新版值。活动、价格、获取途径和保底仍用明确覆盖所问时间的资料判断。
+
+本轮从 2026 年 8 月 10 日起至 11 月 19 日核对了国服官网列出的 18 则版本与维护公告。所核公告未列出「银河暂留」和「最后一朵玫瑰」的 1 阶数值调整，国服 1.5 按已核公告沿用表中的图鉴值。1.4 公告提到「最后一朵玫瑰」是在说明限定研募返场。知识库记录了复核结论、区服和截至时间。[国服 1.4 更新公告](https://yh.wanmei.com/news/gamebroad/20260923/264278.html)
+
+核对过的国服公告
+
+- 1.3 期间。[1.3 更新公告](https://yh.wanmei.com/news/gamebroad/20260812/263538.html) · [8 月 18 日](https://yh.wanmei.com/news/gamenews/20260818/263613.html) · [8 月 20 日](https://yh.wanmei.com/news/gamebroad/20260819/263646.html) · [8 月 21 日](https://yh.wanmei.com/news/gamebroad/20260821/263671.html) · [8 月 28 日](https://yh.wanmei.com/news/gamebroad/20260828/263788.html) · [9 月 3 日](https://yh.wanmei.com/news/gamebroad/20260902/263843.html) · [9 月 4 日](https://yh.wanmei.com/news/gamebroad/20260904/263926.html) · [9 月 9 日](https://yh.wanmei.com/news/gamebroad/20260909/264019.html)
+- 1.4 期间。[1.4 更新公告](https://yh.wanmei.com/news/gamebroad/20260923/264278.html) · [9 月 25 日](https://yh.wanmei.com/news/gamebroad/20260928/264388.html) · [9 月 30 日](https://yh.wanmei.com/news/gamebroad/20260930/264433.html) · [10 月 1 日](https://yh.wanmei.com/news/gamebroad/20260930/264458.html) · [10 月 15 日](https://yh.wanmei.com/news/gamebroad/20261014/264537.html) · [10 月 16 日](https://yh.wanmei.com/news/gamebroad/20261015/264630.html) · [10 月 17 日](https://yh.wanmei.com/news/gamebroad/20261016/264655.html)
+- 1.5 期间。[1.5 更新公告](https://yh.wanmei.com/m/news/gamebroad/20261104/264868.html) · [11 月 6 日](https://yh.wanmei.com/m/news/gamebroad/20261106/264932.html) · [11 月 13 日](https://yh.wanmei.com/m/news/gamebroad/20261113/265046.html)
+
+### 「我们。」与「电音」狂欢
+
+同一批 18 则国服更新与维护公告也逐条核对了这两把弧盘。所核公告未列出这两把弧盘的数值调整，国服 1.5 按已核公告沿用对应图鉴的 1 阶值。[国服 1.5 更新公告](https://yh.wanmei.com/m/news/gamebroad/20261104/264868.html)
+
+| 弧盘 | 已复核字段 | 公开资料 |
+|---|---|---|
+| 我们。 | `api011` B 级等离子。`api012` 1 阶「原核体」使装备者普通攻击伤害提高 12%。 | [异环信息站](https://www.ntestation.com/%E6%88%91%E4%BB%AC%E3%80%82) · [GameWith 默认档](https://gamewith.net/nte/74426) |
+| 「电音」狂欢 | `api015` B 级液态。`api016` 1 阶使装备者变轨技能伤害提高 12%。 | [GameWith 简中图鉴](https://gamewith.ai/nte/zh-CN/arc/real-music) · [GameWith 默认档](https://gamewith.net/nte/74425) · [Neverness 一阶资料](https://neverness.app/arcs/real-music) |
+
+「电音」狂欢的效果名称在 GameWith 简中页写作「唱片附电灵」，呗果写作「附电灵」。本次条目采用两页一致的技能种类及经调弧表核对的数值。[GameWith 简中图鉴](https://gamewith.ai/nte/zh-CN/arc/real-music) · [呗果装备页](https://exoring.fun/modules/equipment)
+
+[Interactive Map 的异环数据库](https://interactivemap.app/neverness-to-everness/database/zh-Hans/)可供人工查找条目，页面区分国际服数据和国服预览数据。[站点条款](https://interactivemap.app/legal/terms)限制自动脚本访问。
+
+### 九原与娜娜莉的中文配音
+
+- `api001` 九原的中文配音为张安琪。两家角色图鉴的中文配音字段和番组计划的出演记录一致。项目组发布的公测声优致谢也列有张安琪。角色与演员的对应关系来自图鉴和出演记录。[异环信息站](https://www.ntestation.com/%E4%B9%9D%E5%8E%9F) · [环世全鉴](https://wiki.mysqil.com/characters/jiuyuan) · [番组计划](https://bangumi.tv/character/198292) · [公测声优致谢](https://www.bilibili.com/video/BV1iWdVBzED7/)
+- `api010` 娜娜莉的中文配音为宋媛媛。海天工作室的参配名单直接列出两者的对应关系，异环信息站和环世全鉴也记录相同名字。[海天工作室参配名单](https://www.bilibili.com/video/BV19gNo68E78/) · [异环信息站](https://www.ntestation.com/%E5%A8%9C%E5%A8%9C%E8%8E%89) · [环世全鉴](https://wiki.mysqil.com/characters/nanali)
+
+两条中文配音作为独立来源条目入库。旧 BWIKI 曾把九原的配音写成宋媛媛，按历史误例记载，错记原因未确认。
+
+### 生日、中文配音与战斗定位
+
+| 题号 | 复核结果 | 依据 |
+|---|---|---|
+| `api004`、`api005` | 哈尼娅的生日为 3 月 27 日，中文配音为苏子芜。 | [异环信息站](https://www.ntestation.com/%E5%93%88%E5%B0%BC%E5%A8%85) · [生日资料](https://hngameguide.com/zh-cn/%E3%80%8A%E5%BC%82%E7%8E%AF%E3%80%8B%E5%93%88%E5%B0%BC%E5%A8%85%E5%9F%B9%E5%85%BB%E6%94%BB%E7%95%A5%EF%BC%9A%E5%85%AC%E6%B5%8B%E5%85%8D%E8%B4%B9%E9%80%81%EF%BC%8C%E6%8A%80%E8%83%BD%E9%85%8D%E9%98%9F/) · [环世全鉴配音栏](https://wiki.mysqil.com/characters/haniya) |
+| `api006`、`api007` | 哈索尔的生日为 8 月 29 日，中文配音为洪海天。 | [异环信息站](https://www.ntestation.com/%E5%93%88%E7%B4%A2%E5%B0%94) · [游侠网生日资料](https://gl.ali213.net/html/2026-4/1766505.html) · [海天配音工作室参配名单](https://www.bilibili.com/video/BV19gNo68E78/) |
+| `api008`、`api009` | 埃德嘉的生日为 10 月 7 日，中文配音为四白。 | [异环信息站](https://www.ntestation.com/%E5%9F%83%E5%BE%B7%E5%98%89) · [角色生日一览](https://www.kfcrm.com/news/1596.htm) · [前瞻配音名单整理](https://www.sina.cn/news/detail/5289141281756630.html) |
+| `q003` | 真红的战斗定位为主力输出。 | [异环信息站](https://www.ntestation.com/%E7%9C%9F%E7%BA%A2) · [环世全鉴的主C分类](https://wiki.mysqil.com/characters/zhenhong) |
+| `q016` | 娜娜莉的战斗定位为主力输出、追加攻击。 | [异环信息站](https://www.ntestation.com/%E5%A8%9C%E5%A8%9C%E8%8E%89) · [环世全鉴的定位及技能](https://wiki.mysqil.com/characters/nanali) |
+
+战斗类评测采用异环信息站的「战斗定位」字段。旧题的「类型」「战斗类型」是 BWIKI 表格字段，换源时同步调整题目用词。旧生日和战斗定位记录仍保存在历史种子中。
+
+### 版本排期、玩法修复与剧情出处
+
+- `q005` 国服 1.3「雾中朔望星回」于 2026 年 8 月 13 日版本维护完成后开启，国服 1.4 于 9 月 24 日维护完成后开启。萌娘百科旧快照的运营横幅从 9 月起算，对应当时的阶段。归档保留该横幅和抽取记录，问答排除这部分证据，同页词典和游戏介绍继续可用。[国服 1.3 更新公告](https://yh.wanmei.com/news/gamebroad/20260812/263538.html) · [国服 1.4 更新公告](https://yh.wanmei.com/news/gamebroad/20260923/264278.html)
+- `q047` 两版官方前瞻的游戏介绍均说明故事从海特洛市开始、玩家作为首位「无证上岗」的异象猎人加入伊波恩古董店。评测接受任一篇官方原文。[1.3 前瞻](https://yh.wanmei.com/news/gamenews/20260808/263494.html) · [1.4 前瞻](https://yh.wanmei.com/news/gamebroad/20260916/264201.html)
+- `q042` 将 8 月 20 日不停服更新公告中「排球之星」的四项修复写入同一条目，覆盖胜利动作的时装穿模、拖尾缺失、抛球抖动和新球员解锁弹窗重复。拦网手感在公告中归入优化部分。[8 月 20 日不停服更新公告](https://yh.wanmei.com/news/gamebroad/20260819/263646.html)
+
+## 2026 年 9 月的历史调研
+
 > 调研时间：2026-09-21（北京时间）
 > 调研方式：联网检索发现候选 URL → 逐条实测访问，下表中每条结论均有实际访问记录
 > 游戏信息：《异环》/ Neverness to Everness (NTE)，完美世界旗下 Hotta Studio 研发，超自然都市开放世界 RPG
@@ -12,8 +122,7 @@
 > 其中**九游（9game）已被整体移除**：它的攻略存在疑似 AI 批量生成的事实污染
 > （把《异环》和《绝区零》的角色混在一起），既不在 `app/core/sources.py` 的内置源里，
 > 种子里也一条都没有。优先级表里出现 9game 的位置，一律按「已移除」理解。
-> **当前实际在用的 15 个内置来源见 [`app/core/sources.py`](../app/core/sources.py) 的
-> `DEFAULT_SOURCES` 与 README**；这页对**其它**站点的可达性结论仍然有效。
+> **历史目录包含 15 个内置来源。** 当前是否可用见 [`app/core/sources.py`](../app/core/sources.py) 和程序的「自动更新」页。
 >
 > **这里漏记了一个正在起作用的来源**：第二来源「玩一玩游戏网」（`m.wywyx.com`，内置源
 > `wywyx_characters`）于 2026-09-22 接入，这页 2026-09-21 的优先级表里还没有它。

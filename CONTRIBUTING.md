@@ -93,17 +93,8 @@ $env:NTE_RAG_DATA_DIR = "$PWD\.scratch_data"
 .venv\Scripts\python.exe tools\quality_check.py
 ```
 
-成功的标志是最后两行逐字为：
-
-```
-共 704 项：通过 704，失败 0
-全部通过
-```
-
-`704` 是开发机上的数字，它包含 `eval/report-*.json` 与 `data/cache/wiki_api/` 相关的比对。
-这两样都是刻意不入库的本地产物，所以干净 clone 与 CI 里没有。那部分比对会打印成
-`⏭ 跳过：…`，并单独汇总为「另有 N 处未参与比对」，总数因此更少。唯一必须成立的是
-「失败 0」，别拿总数去卡 CI。
+通过条件为退出码为 0，且汇总显示「失败 0」。依赖 `eval/report-*.json` 与 `data/cache/wiki_api/`
+的比对会在缺少本地产物时单独报告跳过，因而不同环境的检查总数可能不同。
 
 几点补充：
 
@@ -201,7 +192,7 @@ app/core/ingest.py:1132-1214  ← load_seed 的指纹逻辑
 
 提交前逐条过一遍，都很短，但都真的会被看：
 
-- [ ] `.venv\Scripts\python.exe tools\quality_check.py` 输出 `共 704 项：通过 704，失败 0`（干净检出会少几十条，见第 2 节）；
+- [ ] `.venv\Scripts\python.exe tools\quality_check.py` 退出码为 0，汇总显示「失败 0」。
 - [ ] 没有新增依赖，或者已在描述里写明理由与体积影响；
 - [ ] diff 里没有密钥、Token、个人路径（`C:\Users\<你的用户名>\…`）、临时数据目录产物；
 - [ ] `CHANGELOG.md` 已按「新增 / 变更 / 修复」记录用户能感知的改动；

@@ -18,6 +18,8 @@
 
 from __future__ import annotations
 
+from .curation import paused_reason
+
 import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterator, List, Mapping, Optional, Sequence
@@ -326,6 +328,12 @@ def _mark_under_construction() -> None:
         if not any(domain in url for domain in CONSTRUCTION_DOMAINS):
             continue
         item["under_construction"] = True
+        paused = paused_reason(url)
+        if paused:
+            item["enabled"] = False
+            item["paused_reason"] = paused
+            item["note"] = paused
+            continue
         note = str(item.get("note") or "")
         if CONSTRUCTION_NOTE not in note:
             item["note"] = f"{note}；{CONSTRUCTION_NOTE}" if note else CONSTRUCTION_NOTE
@@ -449,6 +457,10 @@ def iter_source_pages(
     on_drop: Optional[Any] = None,
 ) -> Iterator[PageItem]:
     """按 source.kind 产出可入库的页面。"""
+    paused = paused_reason(source.get("url", ""))
+    if paused:
+        _report_drop(on_drop, paused)
+        return
 
     def progress(message: str) -> None:
         if on_progress:

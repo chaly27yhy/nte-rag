@@ -16,6 +16,8 @@ import re
 import threading
 import time
 from dataclasses import dataclass
+from datetime import timezone
+from email.utils import parsedate_to_datetime
 from typing import Any, Dict, List, Optional, Sequence
 from urllib.parse import urljoin, urlparse
 from urllib.robotparser import RobotFileParser
@@ -24,6 +26,7 @@ import httpx
 
 from . import secrets
 from . import quality
+from .curation import paused_reason
 
 DEFAULT_UA = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -61,6 +64,24 @@ _SHARED_ROBOTS: Dict[str, Any] = {}
 _SHARED_ROBOTS_LOCK = threading.RLock()
 
 
+def _retry_after_seconds(header: str, now: float) -> float:
+    """解析秒数或 HTTP 日期，过期和无法解析的头由本地策略兜底。"""
+    value = header.strip()
+    if value.isascii() and value.isdecimal():
+        # 时间戳须能在更新日志里显示为日期。这个上界远晚于通常的限流窗口。
+        seconds = value.lstrip("0")
+        return float(min(10**11, int(seconds[:12] or "0")))
+    if not value:
+        return 0.0
+    try:
+        date = parsedate_to_datetime(value)
+        if date.tzinfo is None:
+            date = date.replace(tzinfo=timezone.utc)
+        return max(0.0, date.timestamp() - now)
+    except (ValueError, OverflowError, OSError):
+        return 0.0
+
+
 def _host_of(url: Any) -> str:
     """取 URL 的主机名；无法解析时返回空串，绝不向外抛异常。
 
@@ -95,6 +116,12 @@ def _is_local_host(host: str) -> bool:
 
 class BlockedError(RuntimeError):
     """目标站点触发了访问限制（WAF / 限流），需要稍后重试。"""
+
+
+def _guard_paused_request(request: httpx.Request) -> None:
+    reason = paused_reason(str(request.url))
+    if reason:
+        raise BlockedError(reason)
 
 # 正文容器候选：按优先级尝试
 CONTENT_SELECTORS: Sequence[str] = (
@@ -154,6 +181,8 @@ class FetchResult:
     # 正文在 max_bytes 处被截断：以前静默 break，超长页面被当成完整页
     # 入库/分块/建索引，尾部内容丢失且没有任何提示。
     truncated: bool = False
+    retryable: bool = False
+    retry_after: float = 0.0
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -179,12 +208,15 @@ ROBOTS_TTL_ERROR = 300.0      # 拉取失败（超时 / 5xx / 网络错误）：
 class _RobotsEntry:
     """一台主机 robots.txt 的缓存项：状态 + 原文 + 取回时刻。"""
 
-    __slots__ = ("status", "parser", "fetched_at")
+    __slots__ = ("status", "parser", "fetched_at", "retryable")
 
-    def __init__(self, status: str, parser: Optional[RobotFileParser], fetched_at: float) -> None:
+    def __init__(
+        self, status: str, parser: Optional[RobotFileParser], fetched_at: float, retryable: bool = False,
+    ) -> None:
         self.status = status                    # "ok" / "missing" / "error"
         self.parser = parser
         self.fetched_at = fetched_at
+        self.retryable = retryable
 
 
 class RobotsPolicy:
@@ -216,13 +248,22 @@ class RobotsPolicy:
                 return entry
         parser: Optional[RobotFileParser] = None
         status = "error"
+        retryable = False
         try:
-            response = httpx.get(
-                f"{key}/robots.txt",
-                headers={"User-Agent": self.user_agent},
-                timeout=self.timeout,
-                follow_redirects=True,
-            )
+            address = f"{key}/robots.txt"
+            for _ in range(6):
+                if paused_reason(address):
+                    raise BlockedError(paused_reason(address))
+                response = httpx.get(
+                    address,
+                    headers={"User-Agent": self.user_agent},
+                    timeout=self.timeout,
+                    follow_redirects=False,
+                )
+                location = response.headers.get("Location")
+                if not response.is_redirect or not location:
+                    break
+                address = urljoin(address, location)
             if response.status_code == 200 and response.text.strip():
                 parser = RobotFileParser()
                 parser.parse(response.text.splitlines())
@@ -231,11 +272,10 @@ class RobotsPolicy:
                 # 404/410：站点没有 robots.txt；200 但空文件：同样等于没声明规则。
                 status = "missing"
             else:
-                status = "error"
-        except Exception:
-            parser = None
-            status = "error"
-        entry = _RobotsEntry(status=status, parser=parser, fetched_at=now)
+                retryable = response.status_code in (408, 429) or response.status_code >= 500
+        except Exception as error:  # noqa: BLE001
+            retryable = isinstance(error, httpx.TransportError)
+        entry = _RobotsEntry(status=status, parser=parser, fetched_at=now, retryable=retryable)
         with self._lock:
             self._cache[key] = entry
         return entry
@@ -304,6 +344,16 @@ class RobotsPolicy:
         except Exception:
             return 0.0
 
+    def needs_retry(self, url: str) -> bool:
+        try:
+            parts = urlparse(url)
+            key = f"{parts.scheme}://{parts.hostname}"
+        except ValueError:
+            return False
+        with self._lock:
+            entry = self._cache.get(key)
+        return bool(entry and entry.retryable)
+
 
 class Fetcher:
     """带 robots 检查、限速与正文抽取的抓取器。"""
@@ -354,7 +404,8 @@ class Fetcher:
         with self._lock:
             if self._client is None:
                 self._client = httpx.Client(
-                    timeout=self.timeout, follow_redirects=True, headers=self.headers
+                    timeout=self.timeout, follow_redirects=True, headers=self.headers,
+                    event_hooks={"request": [_guard_paused_request]},
                 )
             return self._client
 
@@ -416,14 +467,21 @@ class Fetcher:
             until = self._cooldown.get(host, 0.0)
         return max(0.0, until - time.time())
 
-    def _enter_cooldown(self, url: str, status: int) -> None:
-        if status not in COOLDOWN_STATUSES:
-            return
+    def _enter_cooldown(self, url: str, status: int, retry_after: str = "") -> float:
+        if status not in COOLDOWN_STATUSES and status != 503:
+            return 0.0
+        now = time.time()
+        requested = _retry_after_seconds(retry_after, now)
+        if status == 503 and not requested:
+            return 0.0
         host = _host_of(url)
         if not host:
-            return
+            return 0.0
+        delay = max(self.cooldown_seconds, requested)
         with self._lock:
-            self._cooldown[host] = time.time() + self.cooldown_seconds
+            until = max(self._cooldown.get(host, 0.0), now + delay)
+            self._cooldown[host] = until
+        return until - now
 
     def _throttle(self, url: str) -> None:
         host = _host_of(url)
@@ -504,11 +562,14 @@ class Fetcher:
         left = self.cooldown_left(url)
         if left > 0:
             result.skipped = True
+            result.retryable = True
+            result.retry_after = left
             result.error = f"站点此前触发了访问限制，正在冷却中（约 {int(left)} 秒后恢复），本轮跳过"
             return result
 
         if self.respect_robots and not ignore_robots and not self.robots.allowed(url):
             result.skipped = True
+            result.retryable = self.robots.needs_retry(url)
             result.error = self.robots.note(url)
             return result
 
@@ -534,17 +595,19 @@ class Fetcher:
                         if hop:
                             result.error = hop
                             return result
-                        if response.status_code in COOLDOWN_STATUSES:
+                        cooldown = self._enter_cooldown(url, response.status_code, response.headers.get("Retry-After", ""))
+                        if response.status_code in COOLDOWN_STATUSES or cooldown > 0:
                             # WAF 拦截 / 限流不是瞬时抖动，重试只会让封禁更深：
                             # 立即进入域级冷却并返回，不再把同一个 URL 打 4 遍。
                             result.error = self._status_hint(response.status_code)
-                            self._enter_cooldown(url, response.status_code)
+                            result.retryable = response.status_code in (429, 503, 567)
+                            result.retry_after = cooldown if result.retryable else 0.0
                             return result
                         if self._retryable(response.status_code) and attempt < self.retries:
                             continue
                         if response.status_code >= 400:
                             result.error = self._status_hint(response.status_code)
-                            self._enter_cooldown(url, response.status_code)
+                            result.retryable = response.status_code == 408 or self._retryable(response.status_code)
                             return result
                         # Content-Type 的大小写不保证（实测有站点返回 `TEXT/HTML`）：
                         # 先小写再按类型分流。JSON 绝不能过 HTML 抽取（wikitext 原文里
@@ -567,11 +630,12 @@ class Fetcher:
                         deadline = time.monotonic() + self.timeout
                         for piece in response.iter_bytes():
                             buffer.extend(piece)
-                            if len(buffer) >= self.max_bytes:
-                                # 标记被截断：以前这里静默 break，超限的长页面
-                                # 被当成完整页入库，尾部内容丢失而调用方毫无察觉。
+                            if len(buffer) > self.max_bytes:
+                                # 不完整的响应不能替换知识库中已有的正文。
                                 result.truncated = True
-                                break
+                                result.bytes_read = len(buffer)
+                                result.error = f"页面正文超过 {self.max_bytes // 1000} KB，未入库"
+                                return result
                             if time.monotonic() > deadline:
                                 raise httpx.ReadTimeout("响应体读取超出整体时限")
                         encoding = response.encoding
@@ -605,15 +669,21 @@ class Fetcher:
                 if not result.ok:
                     result.error = "未能从页面中抽取到正文"
                 return result
+            except BlockedError as error:
+                result.skipped = True
+                result.error = str(error)
+                return result
             except httpx.TimeoutException:
                 if attempt < self.retries:
                     continue
                 result.error = "请求超时"
+                result.retryable = True
                 return result
             except httpx.HTTPError as error:
                 if attempt < self.retries:
                     continue
                 result.error = secrets.scrub(f"网络错误：{error}")
+                result.retryable = isinstance(error, httpx.TransportError)
                 return result
             except Exception as error:  # noqa: BLE001
                 result.error = secrets.scrub(f"抓取失败：{error}")
@@ -642,6 +712,11 @@ class Fetcher:
                 # 实际上不生效——一个超大或无限滴灌的风控页就能把进程吃满。
                 client = self.client()
                 with client.stream("GET", url, headers=headers, params=params) as streamed:
+                    cooldown = self._enter_cooldown(
+                        url, streamed.status_code, streamed.headers.get("Retry-After", ""),
+                    )
+                    if streamed.status_code in COOLDOWN_STATUSES or cooldown > 0:
+                        raise BlockedError(self._status_hint(streamed.status_code))
                     buffer = bytearray()
                     for piece in streamed.iter_bytes():
                         buffer.extend(piece)
@@ -661,15 +736,10 @@ class Fetcher:
             except httpx.HTTPError as error:
                 last_error = error
                 continue
-            if response.status_code in COOLDOWN_STATUSES:
-                # 与 fetch() 一致：WAF/限流码立即冷却，不做退避重试
-                self._enter_cooldown(url, response.status_code)
-                raise BlockedError(self._status_hint(response.status_code))
             if self._retryable(response.status_code) and attempt < self.retries:
                 last_error = BlockedError(self._status_hint(response.status_code))
                 continue
             if response.status_code >= 400:
-                self._enter_cooldown(url, response.status_code)
                 raise BlockedError(self._status_hint(response.status_code))
             return response
         if isinstance(last_error, BlockedError):

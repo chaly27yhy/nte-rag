@@ -56,6 +56,12 @@ function Stop-ExeProcesses {
     return ($left.Count -eq 0)
 }
 
+if (-not $PSBoundParameters.ContainsKey('Exe')) {
+    $latest = Get-ChildItem -LiteralPath (Join-Path $root 'dist') -Directory -Filter 'windows-build-*' -ErrorAction SilentlyContinue |
+        Where-Object { Test-Path -LiteralPath (Join-Path $_.FullName 'NTE-RAG.exe') -PathType Leaf } |
+        Sort-Object CreationTime -Descending | Select-Object -First 1
+    if ($latest) { $Exe = Join-Path $latest.FullName 'NTE-RAG.exe' }
+}
 $exePath = if ([System.IO.Path]::IsPathRooted($Exe)) { $Exe } else { Join-Path $root $Exe }
 if (-not (Test-Path $exePath)) {
     Write-Host "找不到 exe：$exePath，请先运行 tools\build_exe.ps1" -ForegroundColor Red
@@ -152,10 +158,12 @@ $windowProc = Start-Process -FilePath $targetExe -ArgumentList '--window-test', 
 # 之前 `-Wait` 直接把验证脚本吊死了 10 分钟。这里最多等 90 秒，然后强杀。
 $windowExited = $windowProc.WaitForExit(90000)
 if (-not $windowExited) {
-    try { Stop-Process -Id $windowProc.Id -Force -ErrorAction SilentlyContinue } catch { }
-    Info '窗口测试超过 90 秒未退出，已强制结束进程'
-    Info '单文件形态在受限环境里无法自解包（本沙箱已知限制）；请手动双击 dist\NTE-RAG.exe 确认'
-    Info '便携目录形态（dist\NTE-RAG\NTE-RAG.exe）不受此限制'
+    Fail '窗口测试超过 90 秒未退出'
+    [void]$failures.Add('window-timeout')
+    if (-not (Stop-ExeProcesses -ExePath $targetExe)) {
+        Fail '窗口测试进程未能完全停止'
+        [void]$failures.Add('window-not-stopped')
+    }
 } else {
     switch ($windowProc.ExitCode) {
         0 { Pass '打包后的 exe 能正常创建原生窗口（WebView2 链路可用）' }

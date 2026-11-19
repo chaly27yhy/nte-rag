@@ -1,0 +1,158 @@
+{
+  "case_set": "real_snapshot_cases.json",
+  "items": [
+    {
+      "id": "nte-weaver-discount-observed",
+      "case_id": "nte-weaver-discount",
+      "answer": "**8 月 12 日的价格**\n\n- 时装「织梦者」折扣价 2680 异晶，原价 3280 异晶（限时 82 折）[2][5]。\n- 折扣时间为「7月23日维护更新后-8月13日05:59」[2][5]。8 月 12 日在这个区间内，因此适用折扣价 2680 异晶[2][5]。\n\n**8 月 13 日 06:00 能否继续用折扣**\n\n- 不能。折扣截止到 8 月 13 日 05:59，06:00 已超出折扣时段[2][5]。\n- 该时装「在售时间：永久」[2][5]，所以 06:00 之后仍可购买，但应按原价 3280 异晶，不再享受 82 折[2][5]。\n\n**提示**\n\n- 上述折扣时段出自 7 月 23 日维护公告[2][5]；1.3 版本更新公告（8 月 13 日 06:00–11:00 维护）未提及「织梦者」折扣延期或调整[10]。若需确认 8 月 13 日之后的实际售价，建议以游戏内商城显示或官方后续公告为准。",
+      "reason": "折扣结束后的实际售价需要独立证据，原价只能按公告原价引用。",
+      "expected": {
+        "excluded_source_recommended": false,
+        "citations_supported": false,
+        "covered": [
+          true,
+          true
+        ],
+        "contradicted": [
+          false,
+          false
+        ],
+        "extra_facts": "unsupported"
+      }
+    },
+    {
+      "id": "nte-weaver-discount-control",
+      "case_id": "nte-weaver-discount",
+      "answer": "8 月 12 日适用 2680 异晶的折扣价。原公告折扣在 8 月 13 日 05:59 结束，06:00 已超过折扣期 [5]。",
+      "reason": "保留准确要点与证据边界。",
+      "expected": {
+        "covered": [
+          true,
+          true
+        ],
+        "contradicted": [
+          false,
+          false
+        ],
+        "excluded_source_recommended": false,
+        "citations_supported": true
+      }
+    },
+    {
+      "id": "nte-return-threshold-observed",
+      "case_id": "nte-return-threshold",
+      "answer": "**结论：不能确定，且按现有条件大概率不满足。**\n\n- 回归鉴定师的条件之一是「连续离线天数 ≥14天」[1][5]。恰好 14 天满足这一条。\n- 另一条是「猎人等级大于10级」[1][5]。恰好 10 级不满足「大于10级」，因此按原文判断，不能被判定为回归鉴定师。\n- 第三条「完成主线第一章剧情委托『生意经与招财宝』」[1][5]，你已满足。\n- 回归状态最终「以游戏内为准」[1][5]，网页端状态更新可能存在延迟，可等待 2-4 分钟后刷新查看[5]。\n\n**建议**：以游戏内回归活动页面的实际判定为准；若对等级门槛有疑问，可到官网活动公告页或游戏内活动界面确认当期的具体条件。",
+      "reason": "10 级明确未达到大于 10 级的门槛。标题不能将这个结论降为大概率。",
+      "expected": {
+        "excluded_source_recommended": false,
+        "citations_supported": false,
+        "covered": [
+          true,
+          false
+        ],
+        "contradicted": [
+          false,
+          true
+        ]
+      }
+    },
+    {
+      "id": "nte-return-threshold-control",
+      "case_id": "nte-return-threshold",
+      "answer": "按公告条件，不能被判定为回归鉴定师。连续离线恰好 14 天达标，但猎人等级 10 级不符合「大于 10 级」[5]。",
+      "reason": "保留准确要点与证据边界。",
+      "expected": {
+        "covered": [
+          true,
+          true
+        ],
+        "contradicted": [
+          false,
+          false
+        ],
+        "excluded_source_recommended": false,
+        "citations_supported": true
+      }
+    },
+    {
+      "id": "nte-mint-birthday-observed",
+      "case_id": "nte-mint-birthday",
+      "answer": "**薄荷的生日**\n\n- 现有资料中，薄荷的生日为 **6月1日** [1]。\n\n**关于「8月20日」的说法**\n\n- 现有资料无法支持「薄荷生日是 8 月 20 日」这一说法。资料中 8 月 20 日出现的是：8 月 20 日不停服更新公告的更新日期 [6]，以及残虹时装「堇色流火」的上架时间 8 月 20 日 06:30 [6][10]；这些都与薄荷的生日无关。\n- 资料中 8 月 20 日实际对应的是**娜娜莉**的生日 [3]，旧攻略可能是把角色生日记混了。\n\n**建议**\n\n- 生日属于角色图鉴字段，建议以游戏内角色详情页或 BWIKI 薄荷角色页的最新版本为准；若旧攻略与图鉴冲突，优先采信游戏内显示。",
+      "reason": "答案采用 6 月 1 日正确，但推荐了项目已经撤回的 BWIKI 薄荷角色页。",
+      "expected": {
+        "excluded_source_recommended": true,
+        "citations_supported": false,
+        "covered": [
+          true,
+          true
+        ],
+        "contradicted": [
+          false,
+          false
+        ]
+      }
+    },
+    {
+      "id": "nte-mint-birthday-control",
+      "case_id": "nte-mint-birthday",
+      "answer": "现有资料中，玩一玩的记录给出薄荷生日是 6 月 1 日 [1]。这些证据无法支持旧攻略所说的 8 月 20 日。若要交叉核对，可查看游戏内角色档案。这里不建议把 BWIKI 的薄荷角色页用作佐证。",
+      "reason": "保留准确要点与证据边界。",
+      "expected": {
+        "covered": [
+          true,
+          true
+        ],
+        "contradicted": [
+          false,
+          false
+        ],
+        "excluded_source_recommended": false,
+        "citations_supported": true
+      }
+    },
+    {
+      "id": "nte-mint-birthday-unsupported-cause",
+      "case_id": "nte-mint-birthday",
+      "answer": "玩一玩记为 6 月 1 日 [1]，现有证据无法支持 8 月 20 日。旧攻略可能把娜娜莉的生日误记成了薄荷的生日 [3]。",
+      "reason": "娜娜莉的日期只说明娜娜莉的生日。证据没有解释旧攻略错误的成因。",
+      "expected": {
+        "covered": [true, true],
+        "contradicted": [false, false],
+        "excluded_source_recommended": false,
+        "citations_supported": false,
+        "extra_facts": "unsupported"
+      }
+    },
+    {
+      "id": "nte-jiuyuan-hp-audited-control",
+      "case_id": "nte-jiuyuan-hp",
+      "answer": "玩一玩的快照把九原的初始生命记为 1290 [1]。旧 BWIKI 的 5846 没有能与初始面板对齐的角色等级和配装条件，不能用于确认游戏内的真实初始生命。",
+      "reason": "将媒体快照数值按来源转述，保留历史误例与实际数值之间的边界。",
+      "expected": {
+        "covered": [true, true],
+        "contradicted": [false, false],
+        "uncertainty_covered": [true],
+        "excluded_source_recommended": false,
+        "citations_supported": true
+      }
+    },
+    {
+      "id": "nte-return-threshold-summary",
+      "case_id": "nte-return-threshold",
+      "answer": "**结论：不能。** 两项条件都不满足。\n\n**逐条核对**\n\n- 连续离线天数：要求「连续离线天数 ≥14天」[1][5]。恰好 14 天满足「大于等于 14 天」这一条。\n- 猎人等级：要求「猎人等级大于10级」[1][5]。恰好 10 级不满足「大于 10 级」，必须高于 10 级。\n- 剧情：要求「完成主线第一章剧情委托『生意经与招财宝』」[1][5]。你已说明完成，这一条满足。\n\n**因此**：由于猎人等级恰好 10 级不满足「大于 10 级」的条件，该角色不会被判断为回归鉴定师 [1][5]。\n\n**补充说明**\n\n- 回归状态最终「以游戏内为准」，且若活动跨版本连续开放，身份无法持续继承，需在下一版本内重新激活 [1][5]。\n- 上述条件出自 2026-07-06 发布的「伊波恩合伙人行动」公告 [1][5]；该活动时间为 1.2 版本更新后至 2026年8月13日 05:59:59（UTC+8）[5]。若你问的是其他版本或后续活动，条件可能已调整，现有资料未明确给出，请以游戏内活动页面或官方最新公告为准。",
+      "reason": "总资格结论虽正确，标题却称两项都不满足，和正文承认离线 14 天达标矛盾。",
+      "expected": {
+        "excluded_source_recommended": false,
+        "citations_supported": false,
+        "covered": [
+          false,
+          true
+        ],
+        "contradicted": [
+          true,
+          false
+        ]
+      }
+    }
+  ]
+}

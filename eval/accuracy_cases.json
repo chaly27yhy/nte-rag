@@ -1,0 +1,227 @@
+{
+  "note": "六道手工编写的虚构回归题。来源文本与参考答案在同一固定快照中供核对，示例域名无需访问。",
+  "documents": [
+    {
+      "title": "浮灯节奖券 1.3 版公告",
+      "url": "https://official.example/lantern/v13",
+      "site": "official.example",
+      "source_type": "official",
+      "chunks": [
+        "1.3 版本自 2026-09-01 生效。浮灯节奖券的每日获取上限为 80 张。该日上限包含全部日常任务来源。"
+      ]
+    },
+    {
+      "title": "浮灯节奖券 1.4 版调整公告",
+      "url": "https://official.example/lantern/v14",
+      "site": "official.example",
+      "source_type": "official",
+      "chunks": [
+        "2026-09-10 发布。自 2026-09-14 起，随 1.4 版本上线，浮灯节奖券每日获取上限调整为 120 张，替换 1.3 版每日 80 张的规则。"
+      ]
+    },
+    {
+      "title": "回声悬赏 1.4 版每周奖励公告",
+      "url": "https://official.example/echo/v14",
+      "site": "official.example",
+      "source_type": "official",
+      "chunks": [
+        "1.4 版本自 2026-09-14 生效。回声悬赏每周结算奖励为 300 代币，按每周结算发放。"
+      ]
+    },
+    {
+      "title": "回声悬赏 1.5 版每周奖励预告",
+      "url": "https://official.example/echo/v15",
+      "site": "official.example",
+      "source_type": "official",
+      "chunks": [
+        "2026-09-22 发布回声悬赏调整预告。1.5 版本自 2026-10-01 生效，从该日开始每周结算奖励为 450 代币。生效日前沿用 1.4 版规则。"
+      ]
+    },
+    {
+      "title": "量子护盾 1.4 版基础吸收值公告",
+      "url": "https://official.example/shield/official",
+      "site": "official.example",
+      "source_type": "official",
+      "chunks": [
+        "1.4 版本量子护盾的基础吸收值固定为 240 点。这里指未施加任何装备、角色等级或队伍加成的基础值。"
+      ]
+    },
+    {
+      "title": "社区量子护盾 1.4 版基础吸收值攻略",
+      "url": "https://community.example/shield/guide",
+      "site": "community.example",
+      "source_type": "community",
+      "chunks": [
+        "本社区攻略记录 1.4 版本量子护盾的基础吸收值为 420 点，不计装备、角色等级或队伍加成。该数值来自玩家整理。"
+      ]
+    },
+    {
+      "title": "月纹补给 1.4 版保底规则",
+      "url": "https://official.example/supply/official",
+      "site": "official.example",
+      "source_type": "official",
+      "chunks": [
+        "1.4 版本月纹补给的保底规则为：累计抽取最迟在第 70 抽获得当期特选物品。获得后该计数重置。"
+      ]
+    },
+    {
+      "title": "社区月纹补给 1.4 版保底攻略",
+      "url": "https://community.example/supply/guide",
+      "site": "community.example",
+      "source_type": "community",
+      "chunks": [
+        "玩家整理的 1.4 版月纹补给攻略称，累计第 60 抽保底获得当期特选物品。该说法尚未得到公告确认。"
+      ]
+    },
+    {
+      "title": "云台摄影挑战开放公告",
+      "url": "https://official.example/photo/official",
+      "site": "official.example",
+      "source_type": "official",
+      "chunks": [
+        "云台摄影挑战于 2026-10-05 10:00 开放。活动开始后，玩家可以前往观景台与引导员对话并查看活动说明。"
+      ]
+    },
+    {
+      "title": "潮汐训练馆首次通关奖励说明",
+      "url": "https://official.example/training/official",
+      "site": "official.example",
+      "source_type": "official",
+      "chunks": [
+        "首次通关潮汐训练馆时，结算界面会发放 150 枚训练徽章。奖励可用于兑换训练馆主题装饰。"
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "accuracy-lantern",
+      "category": "版本时效",
+      "question": "2026-09-20 的浮灯节奖券每日获取上限是多少？旧版上限还适用吗？",
+      "expected_points": [
+        "2026-09-20 生效的是 1.4 版上限，每日 120 张。",
+        "每日 80 张是 1.3 版旧规则，1.4 版生效后已被替换。"
+      ],
+      "expected_sources": [
+        "https://official.example/lantern/v14"
+      ],
+      "required_evidence_sources": [
+        "https://official.example/lantern/v13",
+        "https://official.example/lantern/v14"
+      ],
+      "answerable": true,
+      "time_sensitive": true,
+      "review": {
+        "status": "ok",
+        "comment": "按两份公告写明的生效日判分。9 月 20 日处于新版适用期。"
+      }
+    },
+    {
+      "id": "accuracy-echo",
+      "category": "版本时效",
+      "question": "2026-09-25 每周回声悬赏结算奖励是多少代币？已经发公告的新数值什么时候生效？",
+      "expected_points": [
+        "9 月 25 日现行每周结算奖励为 300 代币。",
+        "新奖励为 450 代币，自 2026-10-01 生效。"
+      ],
+      "expected_sources": [
+        "https://official.example/echo/v14"
+      ],
+      "required_evidence_sources": [
+        "https://official.example/echo/v14",
+        "https://official.example/echo/v15"
+      ],
+      "answerable": true,
+      "time_sensitive": true,
+      "review": {
+        "status": "ok",
+        "comment": "新公告已经发布，生效日在题目日期之后。两份资料分别用于核对现行与未来数值。"
+      }
+    },
+    {
+      "id": "accuracy-shield",
+      "category": "来源冲突",
+      "question": "1.4 版量子护盾基础吸收值，官方和社区分别写多少？以哪个作为该版本的参考？",
+      "expected_points": [
+        "官方 1.4 版资料公布的量子护盾基础吸收值为 240 点。",
+        "社区攻略写为 420 点，与官方数值冲突，采用官方公布的 240 点作为参考。"
+      ],
+      "expected_sources": [
+        "https://official.example/shield/official"
+      ],
+      "required_evidence_sources": [
+        "https://official.example/shield/official",
+        "https://community.example/shield/guide"
+      ],
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "官方和社区都声称是 1.4 版同一字段。需区分出处并采用官方公布值。"
+      }
+    },
+    {
+      "id": "accuracy-supply",
+      "category": "来源冲突",
+      "question": "1.4 版月纹补给最多多少抽保底？社区流传的数字和官方规则有差异吗？",
+      "expected_points": [
+        "官方公告写明最迟在第 70 抽保底。",
+        "社区流传第 60 抽保底，与官方规则冲突，采用官方公布的第 70 抽。"
+      ],
+      "expected_sources": [
+        "https://official.example/supply/official"
+      ],
+      "required_evidence_sources": [
+        "https://official.example/supply/official",
+        "https://community.example/supply/guide"
+      ],
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "两份文本针对同一补给、同一版本和同一档保底，数字有意冲突。"
+      }
+    },
+    {
+      "id": "accuracy-photo",
+      "category": "部分可答",
+      "question": "云台摄影挑战什么时候开放？参与需要达到几级？",
+      "expected_points": [
+        "云台摄影挑战在 2026-10-05 10:00 开放。"
+      ],
+      "expected_unknowns": [
+        "现有资料没有列出参与所需等级，无法确认等级门槛。"
+      ],
+      "expected_sources": [
+        "https://official.example/photo/official"
+      ],
+      "required_evidence_sources": [
+        "https://official.example/photo/official"
+      ],
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "公告通知了开放时间。未列出等级也未写明无等级门槛。"
+      }
+    },
+    {
+      "id": "accuracy-training",
+      "category": "部分可答",
+      "question": "潮汐训练馆首次通关奖励是多少训练徽章？首次奖励每隔多久重置？",
+      "expected_points": [
+        "潮汐训练馆首次通关奖励为 150 枚训练徽章。"
+      ],
+      "expected_unknowns": [
+        "现有资料没有交代首次奖励是否或多久重置，无法确认重置周期。"
+      ],
+      "expected_sources": [
+        "https://official.example/training/official"
+      ],
+      "required_evidence_sources": [
+        "https://official.example/training/official"
+      ],
+      "answerable": true,
+      "review": {
+        "status": "ok",
+        "comment": "奖励公告只写了触发条件和数量。题目的重置前提也需要核对。"
+      }
+    }
+  ]
+}

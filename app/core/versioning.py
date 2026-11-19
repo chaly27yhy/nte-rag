@@ -118,6 +118,55 @@ def _url_date(url: Any) -> str:
 # 「.」不算分隔符：`1.3版本` 会被误读成 1 月 3 日——实测踩过这个坑。
 _MONTH_DAY_RE = re.compile(r"(?<!\d)(\d{1,2})\s*月\s*(\d{1,2})\s*日?|(?<!\d)(\d{1,2})\s*[-/]\s*(\d{1,2})\s*日")
 
+# 问答期只用字面明确的日历日期与起始语句。入库期的宽松日期标签不能直接当作适用范围。
+_CALENDAR_DATE = r"20\d{2}(?:\s*年\s*\d{1,2}\s*月\s*\d{1,2}\s*日|[./-]\d{1,2}[./-]\d{1,2})"
+_CALENDAR_DATE_RE = re.compile(rf"(?<![\d.]){_CALENDAR_DATE}(?!\d|\.\d)")
+_START_DATE = rf"(?:{_CALENDAR_DATE}|\d{{1,2}}\s*月\s*\d{{1,2}}\s*日)(?!\d)"
+_CLOCK = r"(?:\s*(?:[01]?\d|2[0-3])[:：][0-5]\d(?::[0-5]\d)?)?"
+_EXPLICIT_START_RE = re.compile(
+    rf"(?:自|从)\s*(?P<from_date>{_START_DATE}){_CLOCK}\s*(?:起|开始|生效)"
+    rf"|(?:将于|于)\s*(?P<on_date>{_START_DATE}){_CLOCK}\s*"
+    r"(?:(?:版本更新|更新|维护)(?:完成|结束)?后[，,]?\s*)?(?:正式)?(?:开启|上线|开放|生效)"
+    rf"|(?:生效日期|生效时间|生效于)\s*[:：]?\s*(?P<label_date>{_START_DATE})"
+)
+_OTHER_DAY_RE = re.compile(r"(?:至|到|~|～|–|—|-|、|和|及)\s*\d{1,2}\s*日")
+
+
+def _parse_calendar_date(text: str) -> datetime.date | None:
+    year, month, day = map(int, re.findall(r"\d+", text))
+    return _safe_date(year, month, day)
+
+
+def question_date(question: str) -> datetime.date | None:
+    """取题面的唯一完整日期。出现其他日期或范围简写时保留给原文解释。"""
+    dates = {_parse_calendar_date(match[0]) for match in _CALENDAR_DATE_RE.finditer(question)}
+    if len(dates) != 1 or None in dates:
+        return None
+    day = dates.pop()
+    month_day = day.strftime("%m-%d")
+    if _OTHER_DAY_RE.search(question):
+        return None
+    # 完整日期中重复出现同一月日不算另一个日期。
+    if any(value != month_day for value, _ in _month_days_in_text(question)):
+        return None
+    return day
+
+
+def explicit_start_date(text: str, url: str = "") -> datetime.date | None:
+    """从原文明写的起始语句确认日期。链接只可给明确的「月日」补年份。"""
+    dates = set()
+    published = _url_date(url)
+    for match in _EXPLICIT_START_RE.finditer(text):
+        token = next(value for value in match.groups() if value is not None)
+        components = tuple(map(int, re.findall(r"\d+", token)))
+        if len(components) == 3:
+            day = _safe_date(*components)
+        else:
+            date = _roll_forward(published, f"{components[0]:02d}-{components[1]:02d}")
+            day = datetime.date.fromisoformat(date) if date else None
+        dates.add(day)
+    return dates.pop() if len(dates) == 1 else None
+
 
 def _month_days_in_text(text: Any) -> List[Tuple[str, int]]:
     found: List[Tuple[str, int]] = []
