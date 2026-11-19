@@ -75,7 +75,7 @@
 
 1. **推荐**下载 `NTE-RAG-onedir.zip`，解压得到 `NTE-RAG\` 文件夹，双击里面的 `NTE-RAG.exe`。
 2. 也可以下载单文件版 `NTE-RAG.exe`：免解压，但首次启动要把自身解包到临时目录，容易被安全软件或企业策略拦。
-3. 校验：两个产物的 SHA-256 与体积写在下面的[发布产物与哈希校验](#发布产物与哈希校验)一节，Release 说明里也各有一份。
+3. 用同一 Release 的 `SHA256SUMS.txt` 核对下载文件。操作见[发布产物与哈希校验](#发布产物与哈希校验)。
 
 | 前置条件 | 说明 |
 |---|---|
@@ -397,12 +397,8 @@ dist\windows-build-<批次>\NTE-RAG-onedir.zip
 
 便携 ZIP 解压后得到 `NTE-RAG\` 文件夹，其中包含 `NTE-RAG.exe`、`_internal` 与许可说明。
 
-v1.1.0 正式包的 SHA-256 与体积：
-
-- `NTE-RAG.exe` = `93669238cd0700a14d37e1fc0ca89e70fb1e32fa95015b19bc288340b0e3dfd7`（43,495,975 B）
-- `NTE-RAG-onedir.zip` = `3b0a6d6f800c6b253749ec7e0f07331b8a547794926d515fac20c8cf51edaec0`（43,774,738 B）
-
-[下载校验文件 SHA256SUMS.txt](https://github.com/chaly27yhy/nte-rag/releases/download/v1.1.0/SHA256SUMS.txt) · [v1.0.0 历史校验值](docs/development.md#发布github-releases)
+用 PowerShell 的 `Get-FileHash -Algorithm SHA256` 计算下载文件的校验值，再与同一版本的 `SHA256SUMS.txt` 比对。
+[v1.1.0 校验文件](https://github.com/chaly27yhy/nte-rag/releases/download/v1.1.0/SHA256SUMS.txt) · [v1.0.0 历史校验值](docs/development.md#发布github-releases)
 
 重打包后哈希必然变化，请以当次 `build_exe.ps1` 的输出为准。Release 附件清单、打标签与上传步骤见
 [`docs/development.md`](docs/development.md)。

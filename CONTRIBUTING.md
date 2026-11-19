@@ -52,7 +52,7 @@ python -m venv .venv
 如果安装 `pywebview` 时卡在 `proxy_tools` 这个旧式 `setup.py` 包上，那是沙箱禁止管道通信导致的。
 按 [`docs/development.md`](docs/development.md)「安装依赖」小节的 `tools\fetch_pure_sdist.py` 兜底步骤处理即可。
 
-> 精确版本清单见 [`requirements.lock.txt`](requirements.lock.txt)，那是维护者机器 2026-09-23 的快照，
+> 精确版本清单见 [`requirements.lock.txt`](requirements.lock.txt)，记录了维护者的 Windows 构建环境，
 > 仅作参考。事实来源是 `requirements.txt` 与 `requirements-dev.txt`。
 
 ### 1.4 跑起来

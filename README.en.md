@@ -57,8 +57,8 @@ build from unpacking itself into `%TEMP%`.
 
 The latest public release is [v1.1.0](https://github.com/chaly27yhy/nte-rag/releases/tag/v1.1.0).
 See the [changelog](CHANGELOG.md) for changes.
-The byte size and SHA-256 of each artifact are listed in the Chinese README section
-「发布产物与哈希校验」 (see [`README.md`](README.md)).
+The release notes list artifact sizes and SHA-256 hashes. v1.1.0 also includes
+`SHA256SUMS.txt`.
 
 ## Quick start — from source
 
