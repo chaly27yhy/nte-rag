@@ -9,50 +9,50 @@
         "B"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E5%BC%A7%E7%9B%98%E5%9B%BE%E9%89%B4"
+        "https://m.ali213.net/news/gl2604/1766607.html"
       ],
       "category": "弧盘",
       "difficulty": "easy",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": ""
+        "status": "fixed",
+        "comment": "来源试点复核：游侠手游国服公测日图鉴与异环弧盘 Wiki 均标为 B 级。"
       },
       "id": "q001"
     },
     {
       "question": "装备弧盘「成功的第一步」后，释放变轨技能会带来什么效果？",
       "expected_points": [
-        "自身攻击力提升12.00%",
+        "国服公测资料记录的基础调弧效果提升自身攻击力12%",
         "持续10秒",
         "20秒内最多触发一次"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E5%BC%A7%E7%9B%98%E5%9B%BE%E9%89%B4"
+        "https://m.ali213.net/news/gl2604/1766607.html"
       ],
       "category": "弧盘",
       "difficulty": "medium",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": ""
+        "status": "fixed",
+        "comment": "来源试点复核：公测日图鉴列出 12%／10 秒／20 秒，异环弧盘 Wiki 列出 12%—16% 的精炼区间，故将 12% 限于基础效果。"
       },
       "id": "q002"
     },
     {
-      "question": "角色「真红」的战斗类型是什么？",
+      "question": "角色「真红」的战斗定位是什么？",
       "expected_points": [
         "主力输出"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E8%A7%92%E8%89%B2%E5%9B%BE%E9%89%B4"
+        "https://www.ntestation.com/%E7%9C%9F%E7%BA%A2"
       ],
       "category": "角色",
       "difficulty": "easy",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": ""
+        "status": "fixed",
+        "comment": "异环信息站用战斗定位字段列为主力输出，环世全鉴的主C分类佐证。"
       },
       "id": "q003"
     },
@@ -167,34 +167,34 @@
         "货币"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E9%81%93%E5%85%B7%E5%9B%BE%E9%89%B4"
+        "https://www.ntestation.com/%E8%B4%A7%E5%B8%81"
       ],
       "category": "道具",
       "difficulty": "easy",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": ""
+        "status": "fixed",
+        "comment": "维护者的国服1.5版本客户端道具截图顶部标为货币，异环信息站的货币页可公开佐证。"
       },
       "id": "q010"
     },
     {
       "question": "甲硬币可以通过哪些途径获取？",
       "expected_points": [
-        "材料自选箱",
-        "胡迪尼的艺术舞台",
+        "开启材料自选箱",
+        "胡迪尼的魔术舞台·硬币记（确认具体关卡名称）",
         "猎人交易所",
         "世界探索"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E9%81%93%E5%85%B7%E5%9B%BE%E9%89%B4"
+        "https://gamewith.net/nte/74479"
       ],
       "category": "道具",
       "difficulty": "hard",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：expected_points 维持四项。联网实测 BWIKI 道具图鉴「甲硬币」行原文为「| | 甲硬币 | 文件:B标识.png | 货币 | 材料自选箱 胡迪尼的艺术舞台 猎人交易所 世界探索 | 常用的角色养成材料。 | |」（HTTP 200），列数与表头（道具/名称/稀有度/类型/获取途径/描述/介绍）完全对应，四项获取途径同处「获取途径」单元格内，属非抽取错误；起初只逐项点开页面核对，故「世界探索」一度未在已打开页面中直接找到。"
+        "status": "fixed",
+        "comment": "维护者的国服1.5版本客户端道具截图确认四个界面入口，并给出关卡全名「胡迪尼的魔术舞台·硬币记」。GameWith 攻略可公开佐证四类入口，英文关卡名为 Coinicles。"
       },
       "id": "q011"
     },
@@ -272,20 +272,20 @@
       "id": "q015"
     },
     {
-      "question": "娜娜莉在角色图鉴中的类型和战斗类型分别是什么？",
+      "question": "角色「娜娜莉」的战斗定位有哪些？",
       "expected_points": [
-        "类型为输出",
-        "战斗类型为主力输出、追加攻击"
+        "主力输出",
+        "追加攻击"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E8%A7%92%E8%89%B2%E5%9B%BE%E9%89%B4"
+        "https://www.ntestation.com/%E5%A8%9C%E5%A8%9C%E8%8E%89"
       ],
       "category": "角色",
       "difficulty": "easy",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": ""
+        "status": "fixed",
+        "comment": "异环信息站的战斗定位字段直接列出主力输出和追加攻击。原题中的类型概括改问可引用的战斗定位。"
       },
       "id": "q016"
     },

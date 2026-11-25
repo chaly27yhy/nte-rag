@@ -11,6 +11,8 @@
 
 from __future__ import annotations
 
+from .curation import paused_reason
+
 import re
 from dataclasses import dataclass, field
 from typing import Dict, List, Sequence, Tuple
@@ -297,6 +299,9 @@ def is_video_url(url: str) -> bool:
 
 def baseline_block_reason(url: str) -> str:
     """预置基线的拦截原因；没命中返回空字符串。"""
+    paused = paused_reason(url)
+    if paused:
+        return paused
     host = host_of(url)
     if not host:
         return ""

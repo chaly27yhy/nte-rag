@@ -17,12 +17,13 @@ env:
 
 jobs:
   quality-check:
-    name: 机制自检（Windows / Python ${{ matrix.python-version }}）
+    name: 机制自检（Windows / Python ${{ matrix.python-version }}${{ matrix.dependencies == 'locked' && '，锁定依赖' || '' }}）
     runs-on: windows-latest
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.12"]
+        dependencies: [range, locked]
     steps:
       - name: 检出代码
         uses: actions/checkout@v7
@@ -34,8 +35,17 @@ jobs:
           cache: pip
           cache-dependency-path: requirements*.txt
 
-      - name: 安装依赖
+      - name: 按版本范围安装依赖
+        if: matrix.dependencies == 'range'
         run: python -m pip install -r requirements-dev.txt
+
+      - name: 按锁定版本安装依赖
+        if: matrix.dependencies == 'locked'
+        run: python -m pip install -r requirements-dev.txt -c requirements.lock.txt
+
+      - name: 检查锁定依赖的一致性
+        if: matrix.dependencies == 'locked'
+        run: python -m pip check
 
       - name: 密钥门禁（源码、.env 与两份打包脚本）
         shell: pwsh
@@ -78,11 +88,19 @@ jobs:
           $skipCount = ([regex]::Matches($text, '跳过：')).Count
           Write-Host "机制自检通过：$summary；另有 $skipCount 处未参与比对（依赖不入库的本地产物）"
 
-      - name: 保留自检日志
+      - name: 核对内置库的离线来源基线
+        run: python tools/run_eval.py --retrieval-only --tag source-baseline
+
+      - name: 核对准确性题的证据是否都能入选
+        run: python tools/run_eval.py --retrieval-only --set eval/accuracy_cases.json --seed eval/accuracy_cases.json --tag accuracy-cases
+
+      - name: 保留自检日志与离线评测报告
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: quality-check-log
-          path: quality-check.log
+          name: quality-check-log-${{ matrix.dependencies }}
+          path: |
+            quality-check.log
+            eval/report-*.json
           if-no-files-found: ignore
           retention-days: 7

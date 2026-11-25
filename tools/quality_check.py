@@ -262,9 +262,10 @@ def test_fetch_visibility() -> None:
     check("上报内容带得上具体地址和原因", bool(drops) and "127.0.0.1:9" in drops[0], drops[0] if drops else "无")
 
     # 域级冷却：被 WAF 拦下之后不再连续硬撞
-    fetcher._enter_cooldown("https://wiki.biligame.com/yh/弧盘图鉴", 567)
-    check("被拦下的域名进入冷却", fetcher.cooldown_left("https://wiki.biligame.com/yh/弧盘图鉴") > 0)
-    blocked = fetcher.fetch("https://wiki.biligame.com/yh/弧盘图鉴")
+    limited_url = "https://nte-cooldown.example.org/弧盘图鉴"
+    fetcher._enter_cooldown(limited_url, 567)
+    check("被拦下的域名进入冷却", fetcher.cooldown_left(limited_url) > 0)
+    blocked = fetcher.fetch(limited_url)
     # 后半段用「必然解析不了」的域名复验冷却门的顺序：若实现把 robots 检查放在冷却之前，
     # 这里就会拿到「读不到 robots.txt」而不是冷却提示——而且它完全不需要联网就能判。
     ghost = "https://never-resolves.invalid/x"
@@ -519,6 +520,29 @@ def test_seed_upgrade() -> None:
     # 指纹相同就不该重复导入（启动时的快速路径）
     check("指纹可用于判断是否需要重新导入",
           kb.get_meta("seed_fingerprint", "") == seed_fingerprint(seed_file))
+
+    observation = {
+        "title": "测试道具·获取途径", "answer": "客户端实拍列出的获取入口是世界探索。",
+        "source_url": "https://example.com/observation", "source_type": "manual",
+        "extraction": "manual", "tags": "客户端实拍复核", "confidence": 0.8,
+    }
+    seed_file.write_text(json.dumps({"facts": [observation]}, ensure_ascii=False), encoding="utf-8")
+    load_seed(kb, config, seed_file)
+    observation_id = kb.find_facts_by_title(observation["title"])[0]["id"]
+    other_id = kb.add_fact(observation["title"], "另一份独立记录。", source_url="https://else.example.com/entry")
+    versioned_observation = {
+        **observation, "answer": "1.5 版本客户端实拍列出的获取入口是世界探索。",
+        "version": "1.5", "tags": "客户端实拍复核, 采集日期:2026-11-19",
+    }
+    seed_file.write_text(json.dumps({"facts": [versioned_observation]}, ensure_ascii=False), encoding="utf-8")
+    amendment = load_seed(kb, config, seed_file)
+    retry = load_seed(kb, config, seed_file)
+    updated = kb.get_fact(observation_id) or {}
+    check("升级为客户端实拍补录版本，保留独立来源，重试无重复",
+          amendment["failed"] == retry["failed"] == amendment["facts"] == retry["facts"] == 0
+          and all(updated.get(key) == versioned_observation[key] for key in ("answer", "version", "tags"))
+          and len(kb.find_facts_by_title(observation["title"])) == 2
+          and (kb.get_fact(other_id) or {}).get("answer") == "另一份独立记录。")
 
     kb.close()
     shutil.rmtree(work, ignore_errors=True)
@@ -955,9 +979,10 @@ def test_wiki_api() -> None:
 
     check("HTML 注释先被剥离", wiki_api.strip_comments("a<!-- b -->c") == "ac")
 
-    catalog = {item["id"]: item for item in sources_mod.get_sources()}
+    catalog = {item["id"]: item for item in sources_mod.get_sources(include_disabled=True)}
     api_sources = [item for item in catalog.values() if item.get("kind") == "mw_api"]
-    check("目录里有启用中的结构化接口源", len(api_sources) >= 2,
+    check("目录保留 BWIKI 结构化接口定义，暂停时不能运行",
+          len(api_sources) >= 2 and all(not item["enabled"] and item["paused_reason"] for item in api_sources),
           "、".join(item["id"] for item in api_sources))
     check("接口源声明了分类与模板（否则解析不出字段）",
           all(item.get("category") and item.get("templates") for item in api_sources),
@@ -1326,13 +1351,17 @@ def test_kb_gap() -> None:
     check("应拒答题单独分组（不计入覆盖率）", [r["id"] for r in refusal] == ["c"])
     check("没有期望要点的题不进任何分母（无处可判分）",
           "d" not in {r["id"] for r in scored + gap + refusal})
+    defaults = {"execution_error": "", "grading_error": "", "source_hit": None,
+                "citations_supported": None, "uncertainty_covered": [], "is_refusal": True}
+    metrics = run_eval.model_metrics(
+        [{**defaults, **row, "extra_facts": "unsupported" if row["id"] == "b" else "none"}
+         for row in results],
+        elapsed=0,
+    )
     check("缺口题仍计入编造统计（库里没有 ≠ 可以编）",
-          "缺口题编造题数" in (tools_dir / "run_eval.py").read_text(encoding="utf-8")
-          and "answerable_results = scored_results + gap_results"
-          in (tools_dir / "run_eval.py").read_text(encoding="utf-8"))
-    report_src = (tools_dir / "run_eval.py").read_text(encoding="utf-8")
-    check("报告里留下缺口题清单与「不计分」说明",
-          '"gap_ids"' in report_src and "不计入「要点覆盖率」，但计入「疑似编造」" in report_src)
+          metrics["缺口题编造题数"] == metrics["疑似编造题数"] == 1)
+    check("缺口题的覆盖率单列，整体覆盖率保留计分题口径",
+          metrics["缺口题平均覆盖（仅记录）"] == 0.5 and metrics["要点覆盖率"] == 1.0)
 
     # --- ② 离线筛查工具：数字缺失是强信号，措辞缺失只作提示 ---
     corpus = kb_gap_report.build_corpus(
@@ -1464,6 +1493,14 @@ def test_evidence_selection() -> None:
           abs(float(scored["rank_raw"]) - 1.275) < 1e-6
           and float(scored["rank_raw"]) > float(scored["rank"]),
           f"{scored['rank_raw']} vs {scored['rank']}")
+    arc_id = kb.add_fact(title="「电音」狂欢·1阶变轨技能伤害", answer="变轨技能伤害提高12%。")
+    rows = kb.search_facts("国服 1.5 版本里，弧盘「电音」狂欢的 1 阶效果是多少？", limit=4)
+    check("实体名中间的引号不影响完整名称匹配",
+          bool(rows) and rows[0]["id"] == arc_id and rows[0]["entity_hit"] == 1.0)
+    kb.add_fact(title="成功的第一步·效果", answer="变轨后攻击力提高12%。")
+    rows = kb.search_facts("「我们。」「电音」狂欢和「成功的第一步」的效果分别是什么？", limit=3)
+    check("比较题为每个点名的实体保留一条证据",
+          {kb.entity_of(row["title"]) for row in rows} == {"我们。", "电音狂欢", "成功的第一步"})
     kb.close()
     shutil.rmtree(work, ignore_errors=True)
 
@@ -1705,6 +1742,54 @@ def test_versioning() -> None:
           and kb_old.get_fact(migrated_id)["version"] == "1.4")
     kb_old.close()
     shutil.rmtree(work, ignore_errors=True)
+
+    # --- 问答期只比较能从题面和原文确认的起始日 -----------------------
+    from datetime import date
+
+    check("题面完整日期和复述的同一个月日可一起识别",
+          versioning.question_date("按 2026 年 9 月 22 日的快照，9 月 22 日适用哪个版本？")
+          == date(2026, 9, 22))
+    check("多日期、范围简写、缺年和不存在的日期不自动选日",
+          all(versioning.question_date(question) is None for question in (
+              "2026-09-25 和 2026-10-01 规则有何不同？", "2026-09-25 与 10月1日有何不同？",
+              "2026年9月25日至26日有效吗？", "9月25日适用哪个版本？", "2026-02-29 的公告",
+          )))
+    check("公告发布日期早于起始日时仍提取明确的生效日",
+          versioning.explicit_start_date("2026-09-22 发布。1.5 版本自 2026-10-01 生效。")
+          == date(2026, 10, 1))
+    check("公告里的明确月日可以借链接补年份，包括跨年",
+          versioning.explicit_start_date("1.4 版本将于9月24日版本更新后开启！",
+                                         "https://example.com/news/20260916/1.html") == date(2026, 9, 24)
+          and versioning.explicit_start_date("规则将于1月5日上线。",
+                                             "https://example.com/news/20261230/1.html") == date(2027, 1, 5))
+    check("发布日期、结束日期和并列不同起始日都不拿来判适用日",
+          all(versioning.explicit_start_date(text, url="https://example.com/news/20260922/1.html") is None
+              for text in (
+                  "2026-09-22 发布前瞻公告。", "活动截至2026-10-01 00:00结束。",
+                  "甲规则自2026-10-01生效。乙规则自2026-10-04生效。",
+                  "新规则自2026-02-29生效。",
+              )))
+    start_item = {
+        "index": 1, "title": "新规则", "source_type": "official", "text": "新规则于2026-10-01 18:00生效。",
+        "url": "https://example.com/news/20260922/1.html",
+    }
+    three_contexts = [
+        RagEngine.render_context([start_item], question=f"{day} 这条规则如何适用？")
+        for day in ("2026-09-25", "2026-10-01", "2026-10-02")
+    ]
+    check("题目 9 月 25 日明确早于 10 月 1 日生效日",
+          "2026-09-25 早于本段写明的起始日 2026-10-01" in three_contexts[0])
+    check("生效当天提示核对时刻，过了起始日也只标日期关系",
+          "2026-10-01 等于本段写明的起始日 2026-10-01" in three_contexts[1]
+          and "同一天仍须核对原文时刻" in three_contexts[1]
+          and "2026-10-02 晚于本段写明的起始日 2026-10-01" in three_contexts[2])
+    published_item = {
+        **start_item, "text": "2026-09-22 发布公告，具体日期将另行公布。",
+        "effective_from": "2026-09-22", "date_kind": "published",
+    }
+    check("仅有发布日期时保留来源日期，不生成适用判断",
+          "发布于 2026-09-22" in RagEngine.render_context([published_item], question="2026-09-25 适用吗？")
+          and "程序日期核对" not in RagEngine.render_context([published_item], question="2026-09-25 适用吗？"))
 
     # --- 管线接线（防止有人把入库时的 meta 计算删掉） -------------------
     root = Path(__file__).resolve().parents[1]
@@ -2053,7 +2138,7 @@ def test_conflict_survives_seed() -> None:
         answer="薄荷 的生日为：8月20日",
         topic="BWIKI·角色（结构化字段）",
         tags="生日",
-        source_url="https://wiki.biligame.com/yh/%E8%96%84%E8%8D%B7",
+        source_url="https://historical-wiki.example.org/yh/%E8%96%84%E8%8D%B7",
         source_type="wiki",
         confidence=0.7775,
         extraction="api",
@@ -2094,7 +2179,7 @@ def test_conflict_survives_seed() -> None:
         answer="娜娜莉 的生日为：8月20日",
         topic="BWIKI·角色（结构化字段）",
         tags="生日",
-        source_url="https://wiki.biligame.com/yh/%E5%A8%9C%E5%A8%9C%E8%8E%89",
+        source_url="https://historical-wiki.example.org/yh/%E5%A8%9C%E5%A8%9C%E8%8E%89",
         source_type="wiki",
         confidence=0.7775,
         extraction="api",
@@ -2554,17 +2639,14 @@ def test_third_rulings() -> None:
     bwiki = [s for s in src_list if _is_bwiki(s)]
     others = [s for s in src_list if not _is_bwiki(s)]
     check(
-        f"BWIKI 的每个来源都带「施工中/可靠性待确认」标记（{len(bwiki)} 个），别的站一个都不带",
+        f"BWIKI 的每个来源都注明停用理由（{len(bwiki)} 个），其他站没有停用标记",
         len(bwiki) >= 7
-        and all(sources_mod.CONSTRUCTION_NOTE in str(s.get("note") or "") for s in bwiki)
-        and not any(sources_mod.CONSTRUCTION_NOTE in str(s.get("note") or "") for s in others),
-        f"BWIKI {len(bwiki)} 个，其它站误标 {[s.get('id') for s in others if sources_mod.CONSTRUCTION_NOTE in str(s.get('note') or '')]}",
+        and all(not s["enabled"] and s["paused_reason"] in s["note"] for s in bwiki)
+        and not any(s.get("paused_reason") for s in others),
     )
     check(
-        "施工期只做字段级存疑、不整站降权（域名单一，备注写明「不整站降权」）",
-        tuple(sources_mod.CONSTRUCTION_DOMAINS) == ("wiki.biligame.com",)
-        and "不整站降权" in sources_mod.CONSTRUCTION_NOTE
-        and "抽样复核" in sources_mod.CONSTRUCTION_NOTE,
+        "内置源的活动目录排除暂停的 BWIKI",
+        {s["id"] for s in sources_mod.get_sources()} == {s["id"] for s in others if s["enabled"]},
     )
 
     # 排除判据本身：叙事行、施工期数值行要排除；玩一玩生日、官方公告可投票
@@ -2647,17 +2729,17 @@ def test_third_rulings() -> None:
         summary = result.get("summary") or {}
         excluded = result.get("excluded") or {}
         check(
-            f"整库导入 {loaded.get('facts')} 条；叙事 4 条 + 施工期数值字段 10 条被排除在投票之外",
-            excluded == {nar_key: 4, con_key: 10},
+            f"整库导入 {loaded.get('facts')} 条；BWIKI 已过滤，叙事 4 条继续排除在投票之外",
+            loaded["paused"] > 0 and excluded == {nar_key: 4},
             f"{excluded}",
         )
         check(
-            "排除后投票面数字稳定（82 → 74 槽：多源 14、冲突 0、版本 0、单一 60）",
-            summary.get("slots") == 74
-            and summary.get("multi") == 14
+            "暂停 BWIKI 后投票面只留下可用来源（58 个单来源槽位）",
+            summary.get("slots") == 58
+            and summary.get("multi") == 0
             and summary.get("conflict") == 0
             and summary.get("versioned") == 0
-            and summary.get("single") == 60,
+            and summary.get("single") == 58,
             f"{summary}",
         )
         check(
@@ -2760,15 +2842,16 @@ def test_third_rulings() -> None:
     app_js = (web / "app.js").read_text(encoding="utf-8")
     style_css = (web / "style.css").read_text(encoding="utf-8")
     check(
-        "设置页写明了来源可靠性说明（施工中 / 不跨源比对 / 叙事来源不投票）",
+        "来源页写明了停用原因及叙事来源的判断边界",
         "source-policy" in index_html
         and "施工中" in index_html
         and "不参与任何数值/字段投票" in index_html,
     )
     check(
-        "来源列表会打「施工中·可靠性待确认」与「叙事/世界观」徽标",
+        "来源列表显示暂停使用状态并禁用勾选",
         "function sourceBadges" in app_js
-        and "施工中·可靠性待确认" in app_js
+        and "暂停使用" in app_js
+        and "source.paused_reason ? ' disabled'" in app_js
         and ".tag.narrative" in style_css
         and ".tag.warn" in style_css,
     )
@@ -2807,10 +2890,17 @@ def test_packaging_scripts() -> None:
 
     build_text = build.read_text(encoding="utf-8-sig")
     verify_text = verify.read_text(encoding="utf-8-sig")
+    selftest_failure = build_text.partition("if ($selftestCode -ne 0) {")[2].partition("} else {")[0]
+    window_timeout = verify_text.partition("if (-not $windowExited) {")[2].partition("} else {")[0]
+    check("源码自检失败必须中止打包", 'Fail "源码自检失败' in selftest_failure)
+    check("成品窗口超时记录失败并回收引导与窗口进程",
+          "failures.Add('window-timeout')" in window_timeout and "Stop-ExeProcesses" in window_timeout)
 
     check(
-        "打包前会先结束正在运行的实例（否则产物文件被占用）",
-        "Get-Process -Name 'NTE-RAG'" in build_text and "Stop-Process -Force" in build_text,
+        "打包在独立目录进行，检查完成后才移入新的分发目录",
+        build_text.count("--distpath $stagedDist --workpath $workPath") == 2
+        and "Remove-Item" not in build_text and "Stop-Process" not in build_text
+        and build_text.index("产物核对") < build_text.index("Move-Item -LiteralPath $stagedDist"),
     )
     check(
         "验证脚本按 exe 路径收掉所有同名进程（onefile 的引导进程 + 子进程）",
@@ -2830,6 +2920,59 @@ def test_packaging_scripts() -> None:
         "残留目录删不掉时直接报错退出，不带着脏工作区继续验证",
         "请先结束残留的 NTE-RAG 进程" in verify_text and "exit 2" in verify_text,
     )
+
+
+def test_release_seed() -> None:
+    from contextlib import closing
+    from tempfile import TemporaryDirectory
+
+    from release_seed import write_release_seed
+
+    paused = "https://wiki.biligame.com/yh/%E8%96%84%E8%8D%B7"
+    other_section = "https://wiki.biligame.com/yyf/莱夏"
+    independent = "https://example.org/角色资料"
+    guide = "https://www.gamersky.com/handbook/202604/2129310.shtml"
+    guide_text = "在游戏内菜单兑换。"
+    raw = {
+        "version": 1,
+        "documents": [
+            {"url": paused, "chunks": ["旧原文"]},
+            {"url": other_section, "chunks": ["其他专区"]},
+            {"url": guide, "chunks": [guide_text + "\n本文是否解决了您的问题\n游戏平台:pc/ps5/android/ios\n广告"]},
+        ],
+        "facts": [
+            {"title": "旧事实", "source_url": paused},
+            {"title": "混合事实", "source_url": independent, "tags": "并入:wiki.biligame.com"},
+            {"title": "薄荷·生日", "source_url": independent, "answer": "6月1日",
+             "tags": "人工裁定:采纳（2026-09-22，BWIKI 8月20日存疑已撤下）"},
+            {"title": "异环游戏平台", "source_url": guide},
+        ],
+    }
+    with TemporaryDirectory() as folder:
+        work = Path(folder)
+        archive = work / "archive.json"
+        archive.write_text(json.dumps(raw, ensure_ascii=False), encoding="utf-8")
+        original = archive.read_bytes()
+        output = write_release_seed(archive, work / "release" / "seed_kb.json")
+        released = json.loads(output.read_text(encoding="utf-8"))
+        check("发行种子移除暂停的原文、主来源事实和无法拆分的混合事实",
+              released["documents"][0] == raw["documents"][1] and len(released["documents"]) == 2)
+        check("发行种子保留薄荷的独立生日证据和采纳标注",
+              released["facts"] == [{**raw["facts"][2], "tags": "人工裁定:采纳（2026-09-22）"}])
+        check("导出不会修改审计档案", archive.read_bytes() == original)
+        check("发行种子移除旧平台字段及页脚，保留该页的攻略正文",
+              released["documents"][1] == {"url": guide, "chunks": [guide_text]}
+              and all(fact["source_url"] != guide for fact in released["facts"]))
+
+        with closing(KnowledgeBase(work / "knowledge.db")) as kb:
+            url = "https://example.org/notice"
+            doc_id, _ = kb.upsert_document(url, "完整公告", "full", chunks=["已经抓取的完整正文"])
+            _, changed = kb.upsert_document(
+                url, "复核摘要", "summary", meta={"content_kind": "reviewed_summary"}, chunks=["摘要"],
+            )
+            check("内置摘要不会覆盖已有的同页正文",
+                  not changed and kb.get_document(doc_id)["content_hash"] == "full"
+                  and [c["text"] for c in kb.list_chunks(doc_id)] == ["已经抓取的完整正文"])
 
 
 _SCRATCH_DIRS = (
@@ -3227,13 +3370,14 @@ def test_release_assets() -> None:
     check("构建脚本会先生成版本资源", "make_version_info.py" in build)
     check(
         "压缩包带顶层文件夹（不能再用 目录\\* 这种写法）",
-        "Compress-Archive -Path (Join-Path $root 'dist\\NTE-RAG')" in build
-        and "'dist\\NTE-RAG\\*'" not in build,
+        "Compress-Archive -LiteralPath (Join-Path $stagedDist 'NTE-RAG')" in build
+        and "'NTE-RAG\\*'" not in build,
     )
 
     ignored = (root / ".gitignore").read_text(encoding="utf-8-sig", errors="replace")
     check("版本资源不提交（构建时生成）", "assets/version_info.txt" in ignored)
-    check("发布用压缩包不带 onedir 后缀的目录层级已写进 README", "解压后得到 NTE-RAG\\ 文件夹" in (root / "README.md").read_text(encoding="utf-8"))
+    check("发布用压缩包不带 onedir 后缀的目录层级已写进 README",
+          "解压后得到 `NTE-RAG\\` 文件夹" in (root / "README.md").read_text(encoding="utf-8"))
 
     attrs = root / ".gitattributes"
     check(".gitattributes 存在（固定换行符与二进制属性）", attrs.is_file())
@@ -3347,8 +3491,6 @@ def test_audit_fixes_2026_09_23() -> None:
     check("stop() 会置取消标志并等工作线程收尾",
           "_cancel.set()" in stop_src and "join(" in stop_src)
     check("工作线程在主题之间检查取消标志", "_cancel.is_set()" in run_src)
-    check("被取消或真失败的一轮日志记为 partial（主动跳过、页面被过滤都不算）",
-          'partial" if (totals["failed"] or totals["errors"] or self._cancelled)' in run_src)
 
     # ---- .gitignore：工具会重建的临时目录必须被忽略，否则它们会混进待提交清单 ----
     gitignore = (root / ".gitignore").read_text(encoding="utf-8")
@@ -3537,10 +3679,6 @@ def test_audit_fixes_round2() -> None:
     check("裁决请求按块数/字数分批",
           ingest_mod._ADJUDICATE_BATCH_BLOCKS > 0 and ingest_mod._ADJUDICATE_BATCH_CHARS <= 8000
           and "_adjudicate_batch" in inspect.getsource(ingest_mod._adjudicate))
-
-    # ---- 抽取版本变化强制重抽 ----
-    check("抽取版本不一致时强制重抽既有页面",
-          "EXTRACT_VERSION_META" in inspect.getsource(ingest_mod.ingest_sources))
 
     # ---- 无界增长 ----
     dropped_ok = False
@@ -4138,8 +4276,8 @@ def test_about_page_sync() -> None:
           "DeepSeek Harness 配合 DeepSeek v4.1-Flash" in html
           and "DSH" not in html)
 
-    check("关于页单独提醒「资料会过期」并给出快照时间",
-          "资料会过期" in html and "2026-09 的快照" in html)
+    check("关于页提醒资料可能随游戏更新过期",
+          "资料会过期" in html and "游戏更新后" in html)
     check("关于页说明可信度是算出来的、不是模型自评",
           "不是模型自评" in html and "抓不到页面或站点改版" in html)
     check("关于页把最终口径指向游戏内与官方公告",
@@ -4158,9 +4296,10 @@ def test_about_page_sync() -> None:
 
     # 2026-09-24：关于页要能脱离 README 单独读 —— 用户没打开过 README 时，
     # 这一页得说清「这程序能干什么」「资料规模」「代码与资料各是什么许可」。
-    check("关于页列清程序能做什么，并给出内置资料规模",
-          "这个程序能做什么" in html and "8 个公开站点" in html
-          and "685 条知识条目" in html and "152 段原文摘录" in html)
+    check("关于页区分基础快照、后续复核与知识库里的可用资料",
+          "这个程序能做什么" in html and "2026 年 9 月基础快照和后续复核" in html
+          and "国服 1.5 公告收录至" in html
+          and "当前可用数量见「知识库」页" in html)
     check("关于页有「授权与许可」卡片（代码 MIT / 资料与依赖各自的许可文件）",
           "授权与许可" in html and "MIT" in html
           and "DATA_LICENSE.md" in html and "THIRD_PARTY_NOTICES.md" in html)
@@ -4332,8 +4471,6 @@ def test_fixes_round5() -> None:
     check("错误收集不再每个主题只留前 3 条（总数要如实反映）",
           'totals["errors"].extend(stats.get("errors", []))' in run_src
           and 'stats.get("errors", [])[:3]' not in run_src)
-    check("主动跳过与页面过滤不再把一轮判成 partial",
-          'partial" if (totals["failed"] or totals["errors"] or self._cancelled)' in run_src)
     check("汇总文案分开写「取到正文 / 新页面 / 内容未变 / 按规则跳过 / 抓取失败」",
           "取到正文" in run_src and "内容未变" in run_src
           and "按 robots/黑名单规则跳过" in run_src and "抓取失败" in run_src)
@@ -4540,17 +4677,19 @@ def test_fixes_round6() -> None:
                     topic="BWIKI·角色（结构化字段）", tags="生日, 结构化字段",
                     source_url=revoked_cn, source_type="wiki", confidence=0.86,
                     extraction="api", version="", effective_from="", date_kind="", status="active")
-        check("撤回前：伪造页面与条目都能被检索到（正对照）",
-              bool(kb.search_chunks("薄荷 生日 8月20日", limit=5))
-              and bool(kb.find_facts_by_title("薄荷·生日")))
-
-        before = kb.stats()
-        report = curation.apply_revocations(kb)
+        # 复现还没有专区停用策略时的页面级撤回事迹。
+        from unittest.mock import patch
+        with patch.object(curation, "paused_reason", return_value=""):
+            check("只应用页面撤回前：伪造页面与条目都能被检索到（正对照）",
+                  bool(kb.search_chunks("薄荷 生日 8月20日", limit=5))
+                  and bool(kb.find_facts_by_title("薄荷·生日")))
+            before = kb.stats()
+            report = curation.apply_revocations(kb)
+            after = kb.stats()
         check("启动时的迁移把文档、切片、条目一起撤下",
               report["applied"] and report["documents"] == 1 and report["chunks"] == 2
               and report["facts"] == 1 and report["failed"] == 0,
               json.dumps(report, ensure_ascii=False))
-        after = kb.stats()
         check("撤回后用户可见的资料数与条目数都下降",
               after["documents"] == before["documents"] - 1 and after["facts"] == before["facts"] - 1,
               f"{before['documents']}→{after['documents']}，{before['facts']}→{after['facts']}")
@@ -4933,6 +5072,869 @@ def _store_version_key(value: str):
     return store_mod._version_sort_key(value)
 
 
+def test_chat_and_ingest_regressions() -> None:
+    print("\n【37】单次联网选择与页面抽取重试")
+    from contextlib import closing
+    from tempfile import TemporaryDirectory
+    from types import SimpleNamespace
+    from unittest.mock import Mock, patch
+
+    from fastapi.testclient import TestClient
+
+    from app.core import ingest
+    from app.core.autoupdate import UpdateManager
+    from app.core.rag import RagEngine
+    from app.core.search import SearchResult
+    from app.server.api import TOKEN_HEADER, create_app
+
+    with TemporaryDirectory() as scratch:
+        work = Path(scratch)
+        config = Config(path=work / "config.json")
+        config.set("answer", "auto_web", False, autosave=False)
+        with closing(KnowledgeBase(db_file=work / "kb.db")) as kb:
+            rag = RagEngine(config, kb)
+            updater = UpdateManager(config, kb)
+            ctx = SimpleNamespace(config=config, kb=kb, rag=rag, token="local-test")
+            client = TestClient(create_app(ctx), base_url="http://localhost",
+                                headers={TOKEN_HEADER: ctx.token})
+            with closing(client), patch.object(rag, "web_fill", return_value={}) as search:
+                def ask(endpoint, question, **options):
+                    response = client.post(endpoint, json={"question": question, **options})
+                    return response.status_code == 200 and (
+                        endpoint == "/api/chat" or '"type": "done"' in response.text
+                    )
+
+                for endpoint in ("/api/chat", "/api/chat/stream"):
+                    question = f"没有本地命中的测试问题 {endpoint}"
+                    search.reset_mock()
+                    ok = ask(endpoint, question)
+                    check(f"{endpoint} 继承关闭的联网设置",
+                          ok and not search.called and not kb.list_topics())
+                    kb.remove_topic(question)
+                    ok = ask(endpoint, question, allow_web=True)
+                    check(f"{endpoint} 显式开启仅用于本条请求",
+                          ok and search.call_count == 1 and not kb.list_topics())
+                    kb.remove_topic(question)
+                    config.set("answer", "auto_web", True, autosave=False)
+                    search.reset_mock()
+                    ok = ask(endpoint, question, allow_web=False)
+                    check(f"{endpoint} 单次关闭同时禁止缺口入队",
+                          ok and not search.called and not kb.list_topics())
+                    kb.remove_topic(question)
+                    ok = ask(endpoint, question)
+                    check(f"{endpoint} 开启默认联网时仍可补齐缺口",
+                          ok and search.call_count == 1 and bool(kb.list_topics()))
+                    kb.remove_topic(question)
+                    config.set("answer", "auto_web", False, autosave=False)
+
+            kb.enqueue_topic("既有聊天队列条目", origin="chat")
+            kb.enqueue_topic("其他更新主题", origin="auto")
+            topics = [entry.name for entry in updater._collect_topics(None, 20)]
+            check("全局关闭时暂停聊天队列，其他主题仍可处理",
+                  "既有聊天队列条目" not in topics and "其他更新主题" in topics)
+
+            url = "https://example.org/guide"
+            text = "异环玩法指南\n" + ("角色可以在城市探索中收集材料、解锁技能和挑战关卡。\n" * 16)
+            hit = SearchResult("异环玩法指南", url)
+            search = Mock(last_errors=[], **{"search.return_value": [hit]})
+            page = SimpleNamespace(ok=True, skipped=False, text=text, final_url=url,
+                                   url=url, title=hit.title, published="", source_type="community",
+                                   meta={}, quality="")
+            fetcher = Mock(**{"fetch.return_value": page})
+            rag.search, rag.fetcher = search, fetcher
+
+            noise = "家常食谱\n" + ("将原料切片后加水煮开，加入调味料并放凉，最后装盘即可。\n" * 16)
+            check("聊天与更新都拒绝与异环无关的社区正文",
+                  ingest.store_page(kb, config, url, "家常食谱", noise)["doc_id"] is None
+                  and rag.store_page(url, "家常食谱", noise) is None)
+
+            # 旧版本的 meta 在抽取前就被标记过，不能作为成功证明。
+            from app.core.ingest import _hash_text
+            cleaned = quality.validate_page(hit.title, text).cleaned_text
+            doc_id, _ = kb.upsert_document(url, hit.title, _hash_text(cleaned),
+                                          meta={"extraction_version": "1"})
+            kb.replace_chunks(doc_id, [cleaned])
+            table_stats = {"added": 0, "duplicate": 0, "confirmed": 0, "conflict": 0}
+            llm_stats = {"added": 0, "updated": 0, "conflict": 0}
+            with (
+                patch.object(ingest, "store_table_facts", return_value=table_stats) as table,
+                patch.object(ingest, "extract_facts",
+                             side_effect=[{**llm_stats, "error": "timeout"}, {**llm_stats, "error": ""},
+                                          {**llm_stats, "error": ""}, {**llm_stats, "error": ""}]) as model,
+                patch.object(ingest, "get_sources", return_value=[{"id": "fixture", "name": "异环"}]),
+                patch.object(ingest, "iter_source_pages", return_value=[page]),
+            ):
+                def update(llm=None):
+                    return ingest.update_topic(kb, config, "异环", search, fetcher, llm=llm)
+
+                update()
+                check("已有页面首次补抽表格", table.call_count == 1)
+                failed = update(llm=Mock())
+                check("后配模型会补抽，超时会报告", model.call_count == 1 and bool(failed["errors"]))
+                with patch.object(kb, "_replace_chunks", wraps=kb._replace_chunks) as replace:
+                    rag.web_fill("异环")
+                    check("聊天重复抓取同一正文不重写切片", not replace.called)
+                ingest.ingest_sources(kb, config, fetcher, llm=Mock())
+                update(llm=Mock())
+                check("重抓保留完成状态，失败只重试未完成的模型抽取",
+                      table.call_count == 1 and model.call_count == 2)
+                config.set("quality", "extraction_version", "new-rules", autosave=False)
+                ingest.ingest_sources(kb, config, fetcher, llm=Mock())
+                check("规则升级后相同正文会按新版本重抽",
+                      table.call_count == 2 and model.call_count == 3)
+                page.text += "\n异环新版本加入了新的挑战关卡和收集任务。"
+                update(llm=Mock())
+                check("新正文重建切片并重新抽取",
+                      table.call_count == 3 and model.call_count == 4
+                      and bool(kb.search_chunks("收集任务")))
+
+            previous = kb.get_document(doc_id)
+            replace_chunks = kb._replace_chunks
+
+            def fail_after_writing(*args):
+                replace_chunks(*args)
+                raise RuntimeError("模拟切片写入中断")
+
+            with patch.object(kb, "_replace_chunks", side_effect=fail_after_writing):
+                try:
+                    ingest.store_page(kb, config, url, hit.title,
+                                      page.text.replace("收集任务", "布置花园"))
+                except RuntimeError:
+                    pass
+            check("切片写入中断时正文指纹和旧索引一起保留",
+                  kb.get_document(doc_id)["content_hash"] == previous["content_hash"]
+                  and bool(kb.search_chunks("收集任务")) and not kb.search_chunks("布置花园"))
+
+
+def test_eval_evidence_report() -> None:
+    print("\n【38】答题证据快照与独立判分失败")
+    from contextlib import closing
+    from tempfile import TemporaryDirectory
+    from types import SimpleNamespace
+    from unittest.mock import Mock, patch
+
+    import run_eval
+    from app.core.rag import RagEngine
+
+    root = Path(__file__).resolve().parents[1]
+    fixture = root / "eval" / "accuracy_cases.json"
+    items = run_eval.read_items(fixture, reviewed_only=True)
+    item = next(item for item in items if item["id"] == "accuracy-photo")
+    check("六道准确性题覆盖三个场景",
+          len(items) == 6 and {item["category"] for item in items} == {"版本时效", "来源冲突", "部分可答"})
+    check("来源比较识别 URL 编码，保留不同页面的查询参数",
+          run_eval.source_hit(["https://wiki.example/角色/"], ["http://wiki.example/%E8%A7%92%E8%89%B2#面板"])
+          and not run_eval.source_hit(["https://wiki.example/index?title=甲"],
+                                      ["https://wiki.example/index?title=乙"]))
+
+    with TemporaryDirectory() as scratch:
+        work = Path(scratch)
+        config = Config(path=work / "config.json")
+        with closing(KnowledgeBase(db_file=work / "kb.db")) as kb:
+            run_eval.load_snapshot(kb, config, fixture)
+            engine = RagEngine(config, kb)
+            answer_model = Mock()
+            answer_model.chat.return_value = SimpleNamespace(
+                text="2026-10-05 10:00 开放[1]。现有资料未提供等级门槛。", model="fixture-model",
+            )
+            verdict = {"covered": [True], "contradicted": [False], "uncertainty_covered": [True], "is_refusal": False,
+                       "citations_supported": True, "extra_facts": "none",
+                       "excluded_source_recommended": False, "comment": "证据支持开放时间"}
+            judge = Mock()
+            judge.chat_json.return_value = verdict
+            with (
+                patch.object(engine, "llm_ready", return_value=True),
+                patch.object(engine, "llm", return_value=answer_model),
+                patch.object(engine, "retrieve", wraps=engine.retrieve) as retrieve,
+            ):
+                good = run_eval.evaluate_item(engine, judge, item, False)
+                asked = answer_model.chat.call_args.args[0][-1]["content"]
+                grading_prompt = judge.chat_json.call_args.args[0][-1]["content"]
+                check("答题和判分复用同一次检索及完整证据文本",
+                      retrieve.call_count == 1 and good["evidence_context"] in asked
+                      and grading_prompt.endswith(good["evidence_context"]))
+                check("报告保留原回答、带编号的引用、必答点和部分可答判分",
+                      good["answer_text"] == answer_model.chat.return_value.text
+                      and good["evidence"][0]["index"] == 1 and good["citations"][0]["index"] == 1
+                      and good["coverage"] == 1.0 and good["uncertainty_covered"] == [True]
+                      and not good["diagnostics"])
+
+                judge.chat_json.return_value = {k: v for k, v in verdict.items() if k != "excluded_source_recommended"}
+                no_exclusions = run_eval.evaluate_item(engine, judge, item, False)
+                check("没有排除来源的题可正常判分，忽略不适用的字段",
+                      not no_exclusions["grading_error"] and no_exclusions["coverage"] == 1.0
+                      and no_exclusions["excluded_source_recommended"] is False)
+
+                version_question = next(entry["question"] for entry in items if entry["id"] == "accuracy-echo")
+                engine.answer(version_question, allow_web=False)
+                system_text = answer_model.chat.call_args.args[0][0]["content"]
+                answer_model.stream.return_value = iter(["引用资料 [1]"])
+                events = list(engine.stream_answer(version_question, allow_web=False))
+                check("流式和普通问答都先确定日期，再分开陈述当时值与未来值",
+                      any(event["type"] == "done" for event in events)
+                      and answer_model.stream.call_args.args[0][0]["content"] == system_text
+                      and "先确定问题指定的日期" in system_text
+                      and "只能作为未来变更说明" in system_text
+                      and "每个数值和它适用的日期放在同一条结论里" in system_text
+                      and "标题只标示主题或适用范围" in system_text)
+                compare_hint = "2026-09-25 早于本段写明的起始日 2026-10-01"
+                check("两个问答入口把程序算出的跨月日期关系放进同一份证据",
+                      compare_hint in answer_model.chat.call_args.args[0][-1]["content"]
+                      and answer_model.chat.call_args.args[0][-1]["content"]
+                      == answer_model.stream.call_args.args[0][-1]["content"])
+                check("问答提示词约束折后价格、资格确定性和具体来源建议",
+                      all(rule in system_text for rule in (
+                          "折扣结束后的实际售价须有单独证据",
+                          "先逐项写清条件与是否满足",
+                          "Wiki 页面须出现在【证据】里才可以推荐",
+                      )))
+
+                judge.chat_json.return_value = {**verdict, "covered": ["false"]}
+                bad_grade = run_eval.evaluate_item(engine, judge, item, False)
+                check("判分字符串 false 拒收，保留答题证据且不给零分",
+                      bad_grade["grading_error"] and bad_grade["coverage"] is None
+                      and bad_grade["evidence_context"] == good["evidence_context"])
+
+                judge.chat_json.return_value = {**verdict, "contradicted": ["false"]}
+                invalid_contradiction = run_eval.evaluate_item(engine, judge, item, False)
+                check("矛盾标记也必须是逐条布尔值",
+                      "contradicted" in invalid_contradiction["grading_error"]
+                      and invalid_contradiction["coverage"] is None)
+
+                judge.chat_json.reset_mock()
+                answer_model.chat.side_effect = RuntimeError("模拟答题超时")
+                bad_answer = run_eval.evaluate_item(engine, judge, item, False)
+                check("答题失败保留已选证据，跳过判分", bad_answer["execution_error"]
+                      and bad_answer["evidence_context"] and not judge.chat_json.called)
+                metrics = run_eval.model_metrics([good, bad_grade, bad_answer], elapsed=0)
+                check("两个失败计数独立，覆盖率只用有效判分",
+                      metrics["答题失败题数"] == metrics["判分失败题数"] == 1
+                      and metrics["要点覆盖率"] == 1.0 and metrics["应保留项覆盖率"] == 1.0)
+
+                answer_model.chat.side_effect = None
+                cases = {entry["id"]: entry for entry in items}
+                regressions = json.loads((fixture.parent / "grading_regressions.json").read_text(encoding="utf-8"))
+                replays = []
+                for replay in regressions["items"]:
+                    contradict = replay["expected_contradicted"]
+                    answer_model.chat.return_value = SimpleNamespace(
+                        text=replay["answer"], model="fixture-model",
+                    )
+                    # 模拟判分同时声称要点已覆盖和有矛盾。程序应以矛盾为准。
+                    judge.chat_json.return_value = {
+                        **verdict, "covered": [True] * len(contradict),
+                        "contradicted": contradict, "uncertainty_covered": [],
+                    }
+                    row = run_eval.evaluate_item(engine, judge, cases[replay["case_id"]], False)
+                    replays.append(row)
+                    check(f"{replay['id']} 按同一适用范围扣除矛盾要点",
+                          row["covered"] == replay["expected_covered"]
+                          and row["contradicted"] == contradict
+                          and row["citations_supported"] is (not any(contradict))
+                          and ("contradicted_point" in row["diagnostics"]) == any(contradict))
+                metrics = run_eval.model_metrics(replays, elapsed=0)
+                check("矛盾题计数单列，只有区分了不同生效日期的答法获全分",
+                      metrics["矛盾题数"] == 1 and metrics["完整覆盖题数"] == 1)
+
+
+def test_real_snapshot_annotations() -> None:
+    print("\n【39】真实资料题的快照、来源与复核状态")
+    import run_eval
+
+    root = Path(__file__).resolve().parents[1]
+    seed = json.loads((root / "seed" / "seed_kb.json").read_text(encoding="utf-8"))
+    path = root / "eval" / "real_snapshot_cases.json"
+    fixture = json.loads(path.read_text(encoding="utf-8"))
+    draft = run_eval.read_items(path, reviewed_only=True, include_pending=True)
+    approved = run_eval.read_items(path, reviewed_only=True)
+    check("真实题标明快照，并按复核状态决定是否默认参与",
+          fixture["snapshot_generated_at"] == seed["generated_at"]
+          and bool(draft)
+          and {item["id"] for item in approved}
+          == {item["id"] for item in draft if item["review"]["status"] in ("ok", "fixed")})
+
+    originals = {}
+    for doc in seed["documents"]:
+        originals.setdefault(doc["url"], []).append("\n".join([doc["title"], *doc["chunks"]]))
+    for fact in seed["facts"]:
+        originals.setdefault(fact["source_url"], []).append(f"{fact['title']}\n{fact['answer']}")
+    for item in draft:
+        evidence = item["source_anchors"]
+        expected_urls = item["required_evidence_sources"]
+        check(f"{item['id']} 的来源和原文锚点能从快照复核",
+              set(expected_urls) == {entry["url"] for entry in evidence}
+              and all(any(all(anchor in text for anchor in entry["anchors"])
+                          for text in originals.get(entry["url"], [])) for entry in evidence))
+
+
+def test_real_snapshot_grading() -> None:
+    print("\n【40】真实资料错答的判分回归")
+    from contextlib import closing
+    from tempfile import TemporaryDirectory
+    from types import SimpleNamespace
+    from unittest.mock import Mock, patch
+
+    import run_eval
+    from app.core import curation
+    from app.core.rag import RagEngine
+
+    root = Path(__file__).resolve().parents[1]
+    fixture = root / "eval" / "real_snapshot_grading_regressions.json"
+    replay = json.loads(fixture.read_text(encoding="utf-8"))
+    cases = {entry["id"]: entry for entry in run_eval.read_items(fixture.parent / replay["case_set"])}
+    mint_excluded = cases["nte-mint-birthday"]["excluded_sources"]
+    check("薄荷题的排除来源来自程序撤回名单",
+          bool(mint_excluded) and all(curation.is_revoked(source["url"]) for source in mint_excluded))
+    jiuyuan = cases["nte-jiuyuan-hp"]
+    check("九原题排除已复核的错误数值来源，保留玩一玩的原字段",
+          jiuyuan["review"]["status"] == "fixed"
+          and jiuyuan["required_evidence_sources"] == ["https://m.wywyx.com/wiki/578618.html"]
+          and all(source["url"] not in jiuyuan["expected_sources"] for source in jiuyuan["excluded_sources"]))
+
+    with TemporaryDirectory() as scratch:
+        work = Path(scratch)
+        config = Config(path=work / "config.json")
+        with closing(KnowledgeBase(db_file=work / "kb.db")) as kb:
+            run_eval.load_snapshot(kb, config, root / "seed" / "seed_kb.json")
+            engine = RagEngine(config, kb)
+            answer_model, judge = Mock(), Mock()
+            results = []
+            with (
+                patch.object(engine, "llm_ready", return_value=True),
+                patch.object(engine, "llm", return_value=answer_model),
+            ):
+                for entry in replay["items"]:
+                    case = cases[entry["case_id"]]
+                    expected = entry["expected"]
+                    answer_model.chat.return_value = SimpleNamespace(text=entry["answer"], model="fixture-model")
+                    judge.chat_json.return_value = {
+                        "covered": [True] * len(case["expected_points"]),
+                        "contradicted": expected["contradicted"],
+                        "uncertainty_covered": expected.get("uncertainty_covered", []),
+                        "is_refusal": False, "citations_supported": True,
+                        "extra_facts": expected.get("extra_facts", "none"),
+                        "excluded_source_recommended": expected["excluded_source_recommended"],
+                    }
+                    row = run_eval.evaluate_item(engine, judge, case, False)
+                    results.append(row)
+                    prompt = judge.chat_json.call_args.args[0][-1]["content"]
+                    check(f"{entry['id']} 保留独立判分结果",
+                          all(row[field] == value for field, value in expected.items())
+                          and all(source["url"] in prompt for source in case.get("excluded_sources", [])))
+            metrics = run_eval.model_metrics(results, elapsed=0)
+            check("报告区分无依据断言、资格自相矛盾和误荐撤回来源",
+                  metrics["疑似编造题数"] == 2 and metrics["撤回来源误荐题数"] == 1
+                  and metrics["矛盾题数"] == 2
+                  and all(result["diagnostics"] for result in results if not result["citations_supported"]))
+
+
+def test_update_scheduling() -> None:
+    print("\n【41】自动更新的轮转、抓取上限与持久化重试")
+    import sqlite3
+    from contextlib import closing
+    from tempfile import TemporaryDirectory
+    from unittest.mock import Mock, patch
+    from email.utils import formatdate
+
+    import httpx
+
+    from app.core import autoupdate
+    from app.core.fetch import BlockedError, FetchResult
+    from app.core.search import SearchError, SearchResult
+
+    with TemporaryDirectory() as scratch:
+        directory = Path(scratch)
+        config = Config(path=directory / "config.json")
+        config.set("answer", "auto_web", True, autosave=False)
+        config.set("auto_update", "topics", ["主题甲", "主题乙", "主题丙"], autosave=False)
+        path = directory / "kb.db"
+        with closing(sqlite3.connect(path)) as old:
+            old.executescript("""
+                CREATE TABLE meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);
+                INSERT INTO meta VALUES ('schema_version', '3');
+                CREATE TABLE topic_queue (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    topic TEXT NOT NULL UNIQUE,
+                    origin TEXT NOT NULL DEFAULT 'user',
+                    priority INTEGER NOT NULL DEFAULT 5,
+                    hits INTEGER NOT NULL DEFAULT 0,
+                    last_run TEXT NOT NULL DEFAULT '',
+                    created_at TEXT NOT NULL
+                );
+                INSERT INTO topic_queue VALUES (1, '已处理', 'user', 5, 3, '原时间', '原时间');
+                INSERT INTO topic_queue VALUES (2, '待补甲', 'chat', 5, 0, '', '原时间');
+            """)
+        search = Mock(last_errors=[])
+        search.search.side_effect = lambda topic, **_: [
+            SearchResult(topic, f"https://example.org/{index}") for index in range(8)
+        ]
+        fetcher = Mock()
+        fetcher.fetch.side_effect = lambda url: FetchResult(url, skipped=True, error="robots")
+        with (
+            patch.object(autoupdate, "build_search", return_value=search),
+            patch.object(autoupdate, "build_fetcher", return_value=fetcher),
+            patch.object(autoupdate, "_llm_configured", return_value=False),
+        ):
+            with closing(KnowledgeBase(db_file=path)) as kb:
+                check("旧版库原地升级，保留已处理和待补主题",
+                      kb.get_meta("schema_version") == "4"
+                      and kb.queued_topic(1)["last_run"] == "原时间"
+                      and kb.queued_topic(1)["hits"] == 3
+                      and kb.queued_topic(2)["next_retry_at"] == 0)
+                kb.enqueue_topic("待补乙")
+                autoupdate.UpdateManager(config, kb)._run(None, "timer", 1, 5)
+
+            with closing(KnowledgeBase(db_file=path)) as kb:
+                updater = autoupdate.UpdateManager(config, kb)
+                for _ in range(5):
+                    updater._run(None, "timer", 1, 5)
+                check("重启后仍在一页预算下交替选中待补主题，配置主题继续轮转",
+                      [call.args[0] for call in search.search.call_args_list]
+                      == ["主题甲", "待补甲", "主题乙", "待补乙", "主题丙", "主题甲"])
+                check("按规则跳过仍计入一页预算，更新日志为正常完成",
+                      fetcher.fetch.call_count == 6 and kb.list_update_logs(1)[0]["status"] == "ok")
+                kb.enqueue_topic("待补甲", origin="chat", priority=3)
+                kb.enqueue_topic("待补甲", origin="chat", priority=3)
+                due = kb.dequeue_topics()
+                check("同一聊天缺口完成后可重新排队，连问两次仍只有一条",
+                      len(due) == 1 and due[0]["topic"] == "待补甲" and due[0]["hits"] == 1
+                      and not kb.dequeue_topics(include_chat=False))
+                kb.mark_topic_run("待补甲", queue_id=due[0]["id"])
+
+                fetcher.reset_mock()
+                fetcher.fetch.side_effect = [
+                    FetchResult("https://example.org/0", status=404, error="HTTP 404"),
+                    FetchResult("https://example.org/0", skipped=True, error="robots"),
+                ]
+                updater._run(["甲", "乙", "丙", "丁"], "manual", 2, 5)
+                summary = updater.status()["summary"]
+                check("失败和跳过均消耗预算，多主题整轮最多抓取两页",
+                      fetcher.fetch.call_count == summary["attempted"] == summary["page_budget"] == 2
+                      and summary["failed"] == summary["skipped_by_policy"] == 1
+                      and kb.next_topic_retry() is None and kb.list_update_logs(1)[0]["status"] == "partial")
+
+                search.search.side_effect = [[], [SearchResult("有结果", f"https://example.org/{i}") for i in range(8)]]
+                fetcher.reset_mock(side_effect=True)
+                fetcher.fetch.return_value = FetchResult("https://example.org", skipped=True)
+                updater._run(["无结果", "有结果"], "manual", 3, 5)
+                check("没有搜索结果的主题将候选页预算留给后续主题", fetcher.fetch.call_count == 3)
+
+                kb.enqueue_topic("临时失败")
+                search.search.side_effect = SearchError("搜索请求超时", retryable=True)
+                search.last_errors = ["搜索请求超时"]
+                with patch.object(autoupdate.time, "time", return_value=1000):
+                    updater._run(None, "timer", 1, 1)
+                    check("搜索超时保留队列项，5 分钟内不被再次选取",
+                          kb.next_topic_retry() == 1300 and not updater._retry_due()
+                          and updater.status()["summary"]["retries_scheduled"] == 1)
+                    check("搜索聚合错误和提供商明细只计一次",
+                          updater.status()["summary"]["errors"] == ["搜索请求超时"]
+                          and updater.status()["summary"]["error_count"] == 1)
+                    kb.enqueue_topic("临时失败", origin="chat")
+                    check("再次入队保留还未到期的退避", not kb.dequeue_topics(now=1000))
+                search.last_errors = []
+                normal_finished = kb.get_meta("last_update_finished")
+
+            with closing(KnowledgeBase(db_file=path)) as kb:
+                updater = autoupdate.UpdateManager(config, kb)
+                search.search.side_effect = None
+                search.search.return_value = [SearchResult("临时失败", "https://example.org/retry")]
+                fetcher.fetch.return_value = FetchResult("https://example.org/retry", error="读取超时", retryable=True)
+                with patch.object(autoupdate.time, "time", return_value=1300):
+                    check("重启后到期重试，正常更新周期尚未到期",
+                          updater._retry_due() and not updater._should_run()
+                          and "重试" in updater.status()["next_check_hint"])
+                    with patch.object(updater._stop, "wait", side_effect=[False, True]), \
+                         patch.object(updater, "trigger") as trigger:
+                        updater._scheduler_loop()
+                        check("启动调度可独立触发到期重试",
+                              trigger.call_args is not None
+                              and trigger.call_args.kwargs == {"trigger": "retry", "retry_only": True})
+                    updater._run(None, "retry", 1, 1, retry_only=True)
+                    check("抓取超时二次失败后退避 10 分钟，正常更新时间保持原值",
+                          kb.next_topic_retry() == 1900 and kb.get_meta("last_update_finished") == normal_finished)
+                fetcher.fetch.return_value = FetchResult("https://example.org/retry", skipped=True)
+                with patch.object(autoupdate.time, "time", return_value=1900):
+                    updater._run(None, "retry", 1, 1, retry_only=True)
+                    row = next(row for row in kb.list_topics() if row["topic"] == "临时失败")
+                    check("恢复时清除退避，待补记录标记为处理完成",
+                          row["last_run"] and row["retry_count"] == row["next_retry_at"] == 0
+                          and kb.next_topic_retry() is None)
+                for topic, priority, requested_at in [("较早到期", 5, 1900), ("较晚到期", 1, 2000)]:
+                    kb.enqueue_topic(topic, priority=priority)
+                    queue_id = next(row["id"] for row in kb.list_topics() if row["topic"] == topic)
+                    kb.defer_topic(topic, queue_id=queue_id, now=requested_at)
+                check("重试优先处理已经等得更久的主题",
+                      kb.dequeue_topics(limit=1, now=2300, retry_only=True)[0]["topic"] == "较早到期")
+                search.search.side_effect = SearchError("限流", retryable=True)
+                with patch.object(autoupdate.time, "time", return_value=2000):
+                    updater._run(None, "timer", 1, 1)
+                    row = next(row for row in kb.list_topics() if row["topic"] == "主题乙")
+                    check("配置主题失败时入队，例行更新也遵守尚未到期的退避",
+                          row["retry_count"] == 1 and row["next_retry_at"] == 2300
+                          and all(entry.name != "主题乙" for entry in updater._collect_topics(None, 5)))
+
+        for error, expected in [(TimeoutError("读取超时"), True), (SearchError("缺少搜索配置"), False)]:
+            client = SearchClient(free_fallback=False)
+            with patch.object(client, "_run_provider", side_effect=error):
+                try:
+                    client.search("异环")
+                except SearchError as reported:
+                    check(f"搜索聚合保留错误的重试分类（{expected}）", reported.retryable == expected)
+                else:
+                    check("搜索失败时返回明确的错误", False)
+
+    with Fetcher() as fetcher, patch("app.core.fetch.httpx.get") as read_robots, \
+         patch.object(fetcher, "client") as body_client:
+        read_robots.side_effect = [
+            httpx.ReadTimeout("robots 超时"),
+            httpx.Response(200, text="User-agent: *\nDisallow: /"),
+        ]
+        temporary = fetcher.fetch("https://nte-robots-timeout.example.org/guide")
+        disallowed = fetcher.fetch("https://nte-robots-denied.example.org/guide")
+        check("robots 读取超时才等待重试，规则拒绝仍终止，两者均不请求正文",
+              temporary.skipped and temporary.retryable and disallowed.skipped
+              and not disallowed.retryable and not body_client.called)
+    url = "https://nte-retry-rate-limit.example.org/guide"
+    transport = httpx.MockTransport(lambda request: httpx.Response(429, headers={"Retry-After": "3600"}))
+    with (
+        Fetcher(respect_robots=False, min_interval=0, cooldown_seconds=900) as fetcher,
+        httpx.Client(transport=transport) as client,
+        patch.object(fetcher, "client", return_value=client) as body_client,
+        patch.object(fetcher.robots, "crawl_delay", return_value=0),
+    ):
+        limited, cooling = fetcher.fetch(url), fetcher.fetch(url)
+        check("HTTP 429 遵守更长的 Retry-After，冷却期间跳过正文请求",
+              limited.status == 429 and limited.retryable and limited.retry_after == 3600
+              and cooling.skipped and cooling.retryable and 3500 < cooling.retry_after <= 3600
+              and body_client.call_count == 1)
+
+    def response(request):
+        return httpx.Response(503, headers={"Retry-After": formatdate(time.time() + 7200, usegmt=True)})
+
+    with (
+        Fetcher(respect_robots=False, min_interval=0, cooldown_seconds=600) as fetcher,
+        httpx.Client(transport=httpx.MockTransport(response)) as client,
+        patch.object(fetcher, "client", return_value=client) as body_client,
+        patch.object(fetcher.robots, "crawl_delay", return_value=0),
+    ):
+        url = "https://nte-retry-http-date.example.org/api"
+        try:
+            fetcher.get_json(url)
+        except BlockedError:
+            check("API 抓到 503 时识别 HTTP 日期格式，直接冷却",
+                  7100 < fetcher.cooldown_left(url) <= 7200 and body_client.call_count == 1)
+        else:
+            check("API 抓到 503 时识别 HTTP 日期格式，直接冷却", False)
+
+
+def test_changed_source_evidence() -> None:
+    print("\n【42】刷新网页时退出旧正文证据")
+    from contextlib import closing
+    from tempfile import TemporaryDirectory
+    from unittest.mock import patch
+
+    import httpx
+
+    from app.core.rag import RagEngine
+
+    with TemporaryDirectory() as scratch:
+        root = Path(scratch)
+        config = Config(path=root / "config.json")
+        with closing(KnowledgeBase(db_file=root / "kb.db")) as kb:
+            rag = RagEngine(config, kb)
+            url = "https://example.org/gamebroad/202609240001"
+            title = "异环星轨活动兑换奖励公告"
+            filler = (
+                "\n本公告适用于本次专题活动，请确认挑战名称和实际活动时间。"
+                "\n玩家可以在都市活动界面检查星轨活动进度及已经完成的探索记录。"
+                "\n活动入口位于游戏内的专题栏目，开放条件按游戏内的提示为准。"
+                "\n完成探索后，可以在角色菜单中打开活动日志核对条件是否满足。"
+                "\n如有新的任务安排，将在异环游戏内活动界面和官方公告中另行说明。"
+                "\n部分玩法需要完成前置任务，详情请查看活动列表对应的挑战入口。"
+            )
+            old = "异环星轨活动兑换奖励为120星辉。活动期间请前往城市指定站点领取。" + filler
+            new = "异环星轨活动已关闭奖励兑换，新增异环专题历史记录查询界面。" + filler
+            doc_id = rag.store_page(url, title, old, source_type="official")
+            old_ids = [
+                kb.add_fact("星轨活动·兑换奖励", "星轨活动兑换奖励为120星辉。",
+                            source_url=url, source_type="official", extraction=extraction)
+                for extraction in ("llm", "table", "")
+            ]
+            manual_id = kb.add_fact("星轨活动·我的记录", "手写条目需要保留。",
+                                    source_url=url, source_type="manual")
+            api_id = kb.add_fact("星轨活动·接口字段", "独立接口字段需要保留。",
+                                 source_url=url, source_type="official", extraction="api")
+            independent_id = kb.add_fact("星轨活动·其他来源", "独立来源条目需要保留。",
+                                         source_url="https://example.org/independent", extraction="llm")
+            rag.store_page(url, title, old, source_type="official")
+            check("正文未变时保留旧版条目的活跃状态",
+                  doc_id is not None and all(kb.get_fact(i)["status"] == "active" for i in old_ids))
+            with patch.object(kb, "_replace_chunks", side_effect=RuntimeError("写入失败")):
+                try:
+                    rag.store_page(url, title, new, source_type="official")
+                except RuntimeError:
+                    pass
+            check("替换切片失败时，旧条目和正文一同回滚",
+                  all(kb.get_fact(i)["status"] == "active" for i in old_ids)
+                  and "120星辉" in kb.list_chunks(doc_id)[0]["text"])
+            rag.store_page(url, title, new, source_type="official")
+            evidence = rag.build_evidence(rag.retrieve("异环星轨活动兑换奖励是多少星辉？"))
+            check("新正文进证据，旧正文派生条目留作历史并退出检索",
+                  any("已关闭奖励兑换" in item["text"] for item in evidence)
+                  and not any("120星辉" in item["text"] for item in evidence)
+                  and all(kb.get_fact(i)["status"] == "superseded" for i in old_ids))
+            check("源地址相同的手写和接口条目、独立来源条目仍然可用",
+                  all(kb.get_fact(i)["status"] == "active" for i in (manual_id, api_id, independent_id)))
+
+    with (
+        Fetcher(respect_robots=False, min_interval=0, max_bytes=32) as fetcher,
+        httpx.Client(transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, content=b"a" * 33, headers={"content-type": "text/plain"})
+        )) as client,
+        patch.object(fetcher, "client", return_value=client),
+        patch.object(fetcher.robots, "crawl_delay", return_value=0),
+    ):
+        partial = fetcher.fetch("https://nte-source-truncated.example.org/page")
+        check("截断网页不能作为成功正文写入更新流程",
+              partial.truncated and not partial.ok and not partial.text)
+
+
+def test_paused_bwiki() -> None:
+    print("\n【43】BWIKI 异环专区暂停采集、证据退出与旧库归档")
+    from contextlib import closing
+    from tempfile import TemporaryDirectory
+    from unittest.mock import patch
+
+    import httpx
+
+    from app.core import curation
+    from app.core import fetch as fetch_mod
+    from app.core import sources as sources_mod
+    from app.core.ingest import load_seed, store_page
+    from app.core.rag import RagEngine
+    from app.core.search import SearchResult
+    import run_eval
+
+    paused = "https://wiki.biligame.com/yh/%E4%B9%9D%E5%8E%9F"
+    other = "https://wiki.biligame.com/yyf/%E8%8E%B1%E5%A4%8F"
+    independent = "https://example.org/guide"
+    merged = "并入:wiki.biligame.com | 多源确认"
+    check("仅匹配 BWIKI 异环专区及它的实际 URL 变体",
+          all(curation.paused_reason(url) for url in (paused, paused + "?x=y", "http://wiki.biligame.com/yh"))
+          and not any(curation.paused_reason(url) for url in
+                      (other, "https://wiki.biligame.com/yh-other", "https://wiki.biligame.com.example.org/yh/九原")))
+
+    with TemporaryDirectory() as tmp:
+        work = Path(tmp)
+        config = Config(path=work / "config.json")
+        with closing(KnowledgeBase(db_file=work / "legacy.db")) as kb:
+            preserved_id, _ = kb.upsert_document(paused, "九原·历史图鉴", "old",
+                                                chunks=["九原初始生命历史误例"], source_type="wiki")
+            primary_id = kb.add_fact("九原·历史图鉴", "九原初始生命历史误例", source_url=paused)
+            merge_id = kb.add_fact("九原·合并记录", "九原初始生命合并误例", source_url=independent, tags=merged)
+            safe_id = kb.add_fact("九原·独立来源", "九原初始生命独立记录", source_url=independent)
+            kb.upsert_document(independent, "九原·独立来源", "new", chunks=["九原初始生命独立记录"])
+            for fts in (True, False):
+                kb.fts_enabled = fts
+                evidence = RagEngine(config, kb).build_evidence(RagEngine(config, kb).retrieve("九原初始生命"))
+                check(f"既有库在 {'FTS' if fts else 'LIKE'} 检索只返回可用证据",
+                      bool(evidence) and all(e["url"] == independent and "误例" not in e["text"] for e in evidence)
+                      and [r["id"] for r in kb.search_facts("九原初始生命")] == [safe_id])
+            check("旧库文档、切片、主来源事实与混合条目保留原行供复核",
+                  kb.get_document(preserved_id)["status"] == "active" and len(kb.list_chunks(preserved_id)) == 1
+                  and all(kb.get_fact(i)["status"] == "active" for i in (primary_id, merge_id))
+                  and kb.stats()["facts"] == kb.stats()["documents"] == 1
+                  and kb.find_facts_by_title("九原·合并记录") == [])
+            result = store_page(kb, config, paused, "九原", "异环角色资料", source_type="manual")
+            check("暂停来源连手工提交的网页也拒收", result.get("source_rejected") is True)
+
+        seed = work / "seed.json"
+        seed.write_text(json.dumps({
+            "documents": [{"url": paused, "title": "旧", "chunks": ["旧资料"]}],
+            "facts": [{"title": "旧", "answer": "错误资料", "source_url": paused},
+                      {"title": "合并", "answer": "混合依据", "source_url": independent, "tags": merged},
+                      {"title": "独立", "answer": "可用资料", "source_url": independent}],
+        }), encoding="utf-8")
+        with closing(KnowledgeBase(db_file=work / "new.db")) as kb:
+            report = load_seed(kb, config, seed)
+            check("新库只导入仍可使用的种子资料", report["paused"] == 3 and report["facts"] == 1)
+
+    client = SearchClient(provider="bocha")
+    with (
+        patch.object(client, "_provider_order", return_value=["bocha", "bing"]),
+        patch.object(client, "_run_provider", side_effect=[[SearchResult("旧", paused)], [SearchResult("新", independent)]])
+        as providers,
+    ):
+        results = client.search("九原", max_results=1)
+        check("暂停来源不会占用搜索配额，并继续查询可用后备来源",
+              [r.url for r in results] == [independent] and providers.call_count == 2)
+
+    visited = []
+
+    def redirect(request):
+        visited.append(str(request.url))
+        return httpx.Response(302, headers={"Location": paused})
+
+    httpx_client = httpx.Client
+    with (
+        Fetcher(respect_robots=False, min_interval=0) as fetcher,
+        patch.object(fetch_mod.httpx, "Client",
+                     side_effect=lambda **kwargs: httpx_client(transport=httpx.MockTransport(redirect), **kwargs)),
+        patch.object(fetcher.robots, "crawl_delay", return_value=0),
+    ):
+        direct = fetcher.fetch(paused)
+        indirect = fetcher.fetch(independent)
+        check("直连和跨源重定向都在请求暂停页面之前被挡下",
+              direct.skipped and indirect.skipped and visited == [independent])
+    check("暂停来源保持可见的目录记录，活动目录不再抓取",
+          sources_mod.get_source("bwiki_api_arc")["paused_reason"] == curation.PAUSED_BWIKI_REASON
+          and not any(s["id"].startswith("bwiki_") for s in sources_mod.get_sources()))
+    check("历史来源题只有在所有预期来源暂停或必需来源暂停时分开统计",
+          run_eval.paused_expectations({"expected_sources": [paused]}) == [paused]
+          and run_eval.paused_expectations({"expected_sources": [paused, independent]}) == []
+          and run_eval.paused_expectations({"expected_sources": [independent], "required_evidence_sources": [paused]})
+          == [paused])
+
+
+def test_retired_version_banner() -> None:
+    from contextlib import closing
+    from tempfile import TemporaryDirectory
+
+    from app.core.ingest import load_seed
+    from app.core.rag import RagEngine
+
+    snapshot = json.loads((Path(__file__).resolve().parents[1] / "seed/seed_kb.json").read_text(encoding="utf-8"))
+    title = "异环1.3版本运营时间"
+    old_fact = next(fact for fact in snapshot["facts"] if fact["title"] == title)
+    url = old_fact["source_url"]
+    pages = [doc for doc in snapshot["documents"] if doc["url"] == url or doc["url"].startswith(url + "/")]
+    with TemporaryDirectory() as temp:
+        work = Path(temp)
+        seed = work / "seed.json"
+        seed.write_text(json.dumps({"documents": pages, "facts": [old_fact]}, ensure_ascii=False), encoding="utf-8")
+        config = Config(path=work / "config.json")
+        with closing(KnowledgeBase(db_file=work / "knowledge.db")) as kb:
+            report = load_seed(kb, config, seed)
+            check("新版种子跳过误用的排期字段，保留该百科页面及词典", report["revoked"] == 1 and report["documents"] == 2)
+            legacy = kb.add_fact(title, old_fact["answer"], source_url=url)
+            check("既有库排期误例留档并从检索和事实列表排除",
+                  kb.get_fact(legacy)["answer"] == old_fact["answer"]
+                  and kb.find_facts_by_title(title) == [] and not kb.list_facts(keyword=title))
+            engine = RagEngine(config, kb)
+            evidence = engine.build_evidence(engine.retrieve("异能者按异能获取时间分成哪两类？"))
+            check("问答移除旧运营横幅，同段词典释义仍可引用",
+                  any("先天" in item["text"] or "自出生便具备异能" in item["text"] for item in evidence)
+                  and all("现正运营中" not in item["text"] for item in evidence))
+
+
+def test_followup_coverage_and_citations() -> None:
+    from contextlib import closing
+    from tempfile import TemporaryDirectory
+    from unittest.mock import Mock, patch
+
+    from app.core.rag import RagEngine
+
+    with TemporaryDirectory() as folder:
+        work = Path(folder)
+        config = Config(path=work / "config.json")
+        with closing(KnowledgeBase(db_file=work / "knowledge.db")) as kb:
+            for name, actor in (("哈索尔", "洪海天"), ("九原", "张安琪")):
+                kb.add_fact(f"{name}·中文配音", f"{name}的中文配音为{actor}。",
+                            source_url=f"https://example.org/{name}", confidence=0.9)
+            kb.add_fact("黑羽·生日", "黑羽的生日为2月2日。", confidence=0.9)
+            engine = RagEngine(config, kb)
+            history = [{"role": "user", "content": "介绍一下哈索尔"}]
+            with patch.object(engine, "llm_ready", return_value=False):
+                resolved = engine.answer("那她的中文配音是谁？", history=history, allow_web=False)
+                events = list(engine.stream_answer("那她的中文配音是谁？", history=history, allow_web=False))
+                clarifying = engine.answer("那她的中文配音是谁？", history=[
+                    {"role": "user", "content": "比较一下哈索尔和九原"}], allow_web=False)
+            check("同步和流式追问均检索上文的哈索尔",
+                  resolved.citations[0]["title"] == "哈索尔·中文配音"
+                  and events[-1]["citations"][0]["title"] == "哈索尔·中文配音")
+            check("上文点名两个对象时先澄清，避免把代词绑定到任一角色",
+                  "哪一个" in clarifying.text and not clarifying.citations)
+
+            question = "九原和黑羽的中文配音分别是谁？"
+            with patch.object(engine, "web_fill", return_value={"pages": 0}) as web:
+                checked = engine.collect_evidence(question, allow_web=True)
+                web.assert_called_once()
+                check("黑羽的生日条目不能满足配音问题，只补查黑羽的中文配音",
+                      web.call_args.args[0].startswith("黑羽的中文配音")
+                      and checked["missing_subjects"] == ["黑羽"])
+            with patch.object(engine, "web_fill") as web:
+                engine.collect_evidence("哈索尔和九原的中文配音分别是谁？", allow_web=True)
+                engine.collect_evidence(question, allow_web=False)
+                check("组合题全部覆盖或联网关闭时不补查", not web.called)
+
+            model = Mock()
+            model.chat.return_value.text = "模拟回答 [99]"
+            model.stream.return_value = iter(["模拟回答 [99]"])
+            with patch.object(engine, "llm_ready", return_value=True), patch.object(engine, "llm", return_value=model):
+                response = engine.answer("哈索尔的中文配音是谁？", allow_web=False)
+                done = list(engine.stream_answer("哈索尔的中文配音是谁？", allow_web=False))[-1]
+            check("无效引用编号不会把候选资料变成正式引用",
+                  not response.citations and bool(response.candidate_sources)
+                  and not done["citations"] and bool(done["candidate_sources"]))
+
+
+def test_extraction_and_seed_recovery() -> None:
+    from contextlib import closing
+    from tempfile import TemporaryDirectory
+    from types import SimpleNamespace
+    from unittest.mock import Mock, patch
+
+    from app.core import ingest
+    from app.core.llm import LLMError
+    from app.core.search import SearchResult
+    from app.server import api
+
+    with TemporaryDirectory() as folder:
+        work = Path(folder)
+        config = Config(path=work / "config.json")
+        url = "https://example.org/nte/retry"
+        title = "异环资料"
+        body = "异环的公开资料，用于验证抽取重试。" * 20
+        search = Mock()
+        search.search.return_value = [SearchResult(title, url)]
+        fetcher = Mock()
+        fetcher.fetch.return_value = SimpleNamespace(ok=True, skipped=False, text=body, title=title,
+                                                     final_url=url, published="", retryable=False)
+        llm = Mock()
+        llm.chat_json.side_effect = [LLMError("暂时不可用", status=503, retry_after=380), []]
+        db_path = work / "knowledge.db"
+        with closing(KnowledgeBase(db_file=db_path)) as kb:
+            original_store = ingest.store_page
+            with patch.object(ingest, "store_page", side_effect=lambda *args, **kwargs: original_store(
+                *args, **kwargs, validate=False
+            )):
+                first = ingest.update_topic(kb, config, "异环资料", search, fetcher, llm=llm)
+            check("模型暂时失败时保留正文并安排抽取重试，采用服务端等待时间",
+                  first["pages"] == 1 and first["retry_required"] and first["retry_after"] == 380,
+                  repr(first))
+        with closing(KnowledgeBase(db_file=db_path)) as kb:
+            second = ingest.update_topic(kb, config, "异环资料", search, fetcher, llm=llm)
+            check("重启后从已保存正文重试，不重复搜索、抓取和表格抽取",
+                  second["reextracted"] == 1 and second["pages"] == 0 and not second["retry_required"]
+                  and search.search.call_count == fetcher.fetch.call_count == 1 and llm.chat_json.call_count == 2,
+                  repr(second))
+
+            seed = work / "seed_kb.json"
+            seed.write_text(json.dumps({"documents": [], "facts": []}), encoding="utf-8")
+            with patch.object(api, "Config", return_value=config), patch.object(api, "KnowledgeBase", return_value=kb), \
+                 patch.object(config, "apply_dev_env"), patch.object(api.paths, "seed_kb_path", return_value=seed), \
+                 patch.object(api, "load_seed", side_effect=[OSError("模拟读盘错误"), {"failed": 0}]) as loader:
+                ctx = api.AppContext()
+                failure = ctx.ensure_seed()
+                still_failed = ctx.ensure_seed()
+                recovered = ctx.ensure_seed(retry=True)
+                ctx.ensure_seed(retry=True)
+            check("种子导入故障可见，显式重试后恢复，状态检查避免重复导入",
+                  failure["status"] == still_failed["status"] == "failed"
+                  and recovered["status"] == "ready" and loader.call_count == 2)
+
+
 def main() -> int:
     print("=" * 70)
     print("数据质量机制验证")
@@ -4957,6 +5959,7 @@ def main() -> int:
     test_manual_and_audit()
     test_third_rulings()
     test_packaging_scripts()
+    test_release_seed()
     test_hardening()
     test_renames()
     test_release_assets()
@@ -4971,6 +5974,16 @@ def main() -> int:
     test_fixes_round7()
     test_fixes_round8()
     test_lock_pairs()
+    test_chat_and_ingest_regressions()
+    test_eval_evidence_report()
+    test_real_snapshot_annotations()
+    test_real_snapshot_grading()
+    test_update_scheduling()
+    test_changed_source_evidence()
+    test_paused_bwiki()
+    test_retired_version_banner()
+    test_followup_coverage_and_citations()
+    test_extraction_and_seed_recovery()
     _cleanup_scratch()
 
     failed = [name for name, ok in results if not ok]

@@ -4,6 +4,6 @@
 密钥只能来自用户本机配置（DPAPI 加密存储）或开发期 .env（不参与打包）。
 """
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 APP_NAME = "NTE-RAG"
 APP_TITLE = "异环 RAG 知识助手"

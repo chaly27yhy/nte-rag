@@ -17,7 +17,7 @@
 | [`architecture.md`](architecture.md) | 架构现状说明：模块划分、入口点索引、检索与可信度派生链路、常见改动的落点 | **所有人**，尤其是第一次改代码的人 |
 | [`development.md`](development.md) | 开发与打包手册：评测集怎么跑、环境搭建与依赖、运行调试、开发期 `.env`、诊断工具、重建种子库、打包与发布、平台适配、项目结构与入口文件说明、踩坑记录（README 里面向用户的部分不重复这些内容） | 要改代码、重新打包或排查构建问题的人 |
 | [`data_sources_cn.md`](data_sources_cn.md) | 中文数据源清单：官方站、wiki、社区站的定位、可信度等级与可用性备注 | 增删数据源、调可信度权重的人 |
-| [`consistency_review.md`](consistency_review.md) | 跨来源冲突的判例档案：每条裁决的依据与结论（种子里 685 条事实 / 74 槽 / 多来源 14 / 冲突 0，撤回 1 篇后程序内为 682 条） | 质疑某条知识、要提纠正的人；新裁决请按同样格式追加 |
+| [`consistency_review.md`](consistency_review.md) | 跨来源冲突、实拍复核与历史裁决的依据 | 提交知识纠正与查阅历史结论 |
 | [`eval/README.md`](../eval/README.md) | 离线评测集的构成（`eval_set.json` / `eval_api.json` / `eval_tables.json`）、怎么跑、结果怎么读 | 要评估回答质量的人（需要模型 Key，不参与 CI） |
 
 ---

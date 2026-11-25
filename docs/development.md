@@ -23,7 +23,7 @@ README 只保留**用户使用**部分（快速开始、使用说明、常见问
 | [`eval/eval_set.json`](../eval/eval_set.json) | 主评测集 **60 题**，人工逐题审核过（`review.status` = ok / fixed / drop） |
 | [`eval/eval_api.json`](../eval/eval_api.json) | **21 题**，聚焦结构化接口（MediaWiki 模板 → 原子条目）的抽取质量 |
 | [`eval/eval_tables.json`](../eval/eval_tables.json) | **18 题**，聚焦表格类数值（角色初始数值、弧盘效果等） |
-| [`eval/kb_report.json`](../eval/kb_report.json) | 知识库快照体检报告（`tools/kb_report.py` 输出） |
+| [`eval/kb_report.json`](../eval/kb_report.json) | 2026-09-21 的历史体检报告。运行 `tools/kb_report.py` 查看当前种子。 |
 
 怎么跑、每题的结构与判分规则（要点覆盖率 / 来源命中率 / 该拒答时能否拒答）、
 以及 A/B 对比的做法，都写在 [`eval/README.md`](../eval/README.md) 里。要点：
@@ -163,8 +163,7 @@ NTE_RAG_DEV_SEARCH_API_KEY=你的博查Key
 # 第八批修复回归（设置页拉取模型的探针地址采用规则：两种请求体形态、换主机要重填 Key）/
 # 第九批修复回归（CI 工作流能被 GitHub 接受：工作流级只写字面量、数据目录在步骤里设置）/
 # 第十批修复回归（锁文件里的精确配套关系：pydantic 必须与 pydantic-core 同版本）/
-# 704 项断言，
-# 不需要模型也不需要网络；--quiet 只打印失败项
+# 离线运行，要求失败 0。--quiet 只打印失败项。
 .venv\Scripts\python.exe tools\quality_check.py --quiet
 .venv\Scripts\python.exe tools\wiki_api_check.py --list  # 结构化接口（BWIKI 模板字段）端到端：--offline 只用缓存
 .venv\Scripts\python.exe tools\wiki_api_check.py --source bwiki_api_arc --limit 46  # 批量取原文（一次 20 页），46 条弧盘约 3 次请求
@@ -172,8 +171,9 @@ NTE_RAG_DEV_SEARCH_API_KEY=你的博查Key
 .venv\Scripts\python.exe tools\field_report.py  # 字段体检：同一模板/分类里哪些字段「所有页面同值」（= 模板默认值，不能当实体属性入库）
 .venv\Scripts\python.exe tools\field_report.py --caliber  # 口径对照：BWIKI「生命/攻击」与玩一玩「初始生命/初始攻击」能否当同一指标（结论：不能）
 .venv\Scripts\python.exe tools\build_api_eval.py --limit-chars 6 --limit-arcs 6  # 结构化字段专项题集：从缓存出题，自带「旧种子已能答」的区分度守卫
-.venv\Scripts\python.exe tools\run_eval.py --set eval\eval_api.json --tag api-new
-# 换种子做 A/B：--seed 指定任意种子文件，必须配一个全新的空 --data-dir
+.venv\Scripts\python.exe tools\run_eval.py --retrieval-only  # 可用来源回归，另列因来源暂停而暂缓的历史题
+.venv\Scripts\python.exe tools\run_eval.py --set eval\eval_api.json --data-dir .eval_data --tag api-new
+# 换种子做 A/B：--seed 指定种子文件，默认用临时库。显式指定 --data-dir 时用空库。
 .venv\Scripts\python.exe tools\run_eval.py --set eval\eval_api.json `
     --seed <旧的种子文件>.json --data-dir .eval_api_old --tag api-old
 .venv\Scripts\python.exe tools\dedupe_report.py  # 近似重复/冲突体检：扫种子文件或本地库，--merge 才真的合并
@@ -338,6 +338,8 @@ powershell -ExecutionPolicy Bypass -File tools\build_exe.ps1
 PyInstaller 打包（**单文件 + 便携目录两种形态**）→ **构建后扫描两份 exe 的二进制** →
 打包 zip → 输出体积与 SHA256。
 
+两份 `.spec` 都通过 `tools/release_seed.py` 从仓库审计档案生成发行种子。导出使用程序本身的暂停来源规则，并把结果写到 `build/release-seed/`，供相应的 Windows 产物使用。
+
 > 构建脚本自身还有两个坑，都不影响产物，但容易误判成「构建失败」：
 > 1. **`tools/build_exe.ps1` 与 `tools/verify_exe.ps1` 必须保持 UTF-8 带 BOM**：无 BOM 时 PowerShell 5.1
 >    按 ANSI 解码、中文注释会把字符串引号吃掉，报 `The string is missing the terminator`。
@@ -348,12 +350,12 @@ PyInstaller 打包（**单文件 + 便携目录两种形态**）→ **构建后�
 >    都会让**整个构建成功却以退出码 1 结束**；脚本现在用 cmd 把 fd2 接到
 >    `.build_selftest\selftest_stderr.log`，PowerShell 看不到 stderr，完整日志仍留在磁盘上。
 
-产物：
+每次构建在独立目录完成，通过构建检查后移入 `dist` 下的新批次目录。历史候选包与便携数据保存在各自的目录中。
 
 ```
-dist\NTE-RAG.exe                     # 单文件版
-dist\NTE-RAG\                        # 便携目录版（exe + _internal）
-dist\NTE-RAG-onedir.zip              # 便携目录版的压缩包（解压后得到 NTE-RAG\ 文件夹）
+dist\windows-build-<批次>\NTE-RAG.exe
+dist\windows-build-<批次>\NTE-RAG\
+dist\windows-build-<批次>\NTE-RAG-onedir.zip
 ```
 
 > 压缩包里带顶层文件夹是刻意的：早先用 `Compress-Archive -Path 目录\*` 打出来的包里
@@ -366,7 +368,8 @@ dist\NTE-RAG-onedir.zip              # 便携目录版的压缩包（解压后�
 ### 发布前验证
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\verify_exe.ps1 -Exe 'dist\NTE-RAG\NTE-RAG.exe'
+powershell -ExecutionPolicy Bypass -File tools\verify_exe.ps1
+# 用 -Exe 指定构建输出中的便携目录版 exe，可以验证另一种交付形态。
 ```
 
 该脚本会在**全新的空目录**里模拟用户首次拿到产物的场景，逐项验证：
@@ -393,7 +396,7 @@ powershell -ExecutionPolicy Bypass -File tools\verify_exe.ps1 -Exe 'dist\NTE-RAG
 | **密钥绑定 Windows 账户** | API Key 用 Windows DPAPI 加密，只有当前 Windows 账户能解密；换机器或换账户则自动失效并要求重填 |
 | **构建脚本必须带 UTF-8 BOM** | `tools\build_exe.ps1`、`tools\verify_exe.ps1` 在无 BOM 时中文注释会导致 PowerShell 5.1 语法解析失败 |
 
-在受限验证环境下实测到的结论（供在自己的机器上对照）：
+v1.0.0 的历史验证记录（2026-09-24）：
 
 - 单文件版与便携目录版**均全部验证通过**（自检 11/11、服务实跑、鉴权 403/200、种子库导入、
   两次二进制密钥扫描、`--no-console` 双击条件复现）；单文件版首次启动需自解包，数秒延迟属正常。
@@ -401,7 +404,7 @@ powershell -ExecutionPolicy Bypass -File tools\verify_exe.ps1 -Exe 'dist\NTE-RAG
   （流式 2.7s / 731 字 / 8 条引用）；免 Key 的 DuckDuckGo 兜底返回 5 条结果；
   中文检索相关查询相关性 0.766、无关查询 0.000（正确触发联网）。
 - 界面结构、图标与元素 id 一致性、壁纸接口往返与两层适配、向导回退结构均已自动化验证
-  （见 `tools/quality_check.py` 全量 **704** 项断言与自检的 `ui_markup` / `wallpaper_roundtrip` / `starter_asks`）。
+  （见 `tools/quality_check.py` 和程序自检的 `ui_markup` / `wallpaper_roundtrip` / `starter_asks`）。
 - 复现方式：把开发用 Key 填入 `.env` 后执行 `.venv\Scripts\python.exe tools\live_check.py`。
 
 ### 发布（GitHub Releases）
@@ -412,25 +415,27 @@ powershell -ExecutionPolicy Bypass -File tools\verify_exe.ps1 -Exe 'dist\NTE-RAG
 
 ```powershell
 # 1. 提交源码（构建产物不会出现在待提交列表里，可用 git status 复核）
+$releaseTag = 'v' + (Get-Content app/__init__.py | Select-String '^__version__\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
 git add -A
-git commit -m "NTE-RAG 1.0.0"
+git commit -m "NTE-RAG $releaseTag"
 
 # 2. 打标签并推送
-git tag v1.0.0
+git tag $releaseTag
 git push -u origin main
-git push origin v1.0.0
+git push origin $releaseTag
 
 # 3. 记录产物哈希（贴进 Release 说明）
-Get-FileHash dist\NTE-RAG.exe -Algorithm SHA256
-Get-FileHash dist\NTE-RAG-onedir.zip -Algorithm SHA256
+$batch = Get-ChildItem dist -Directory -Filter 'windows-build-*' | Sort-Object CreationTime -Descending | Select-Object -First 1
+Get-FileHash (Join-Path $batch.FullName 'NTE-RAG.exe') -Algorithm SHA256
+Get-FileHash (Join-Path $batch.FullName 'NTE-RAG-onedir.zip') -Algorithm SHA256
 ```
 
-然后到 GitHub 的 **Releases → Draft a new release**，选 `v1.0.0`，**把下面这些作为附件上传**：
+然后到 GitHub 的 **Releases → Draft a new release**，选本次标签并上传以下附件。
 
 | Release 附件 | 来源 | 说明 |
 |---|---|---|
-| `NTE-RAG-onedir.zip`（约 40.8 MB） | `dist\NTE-RAG-onedir.zip` | **推荐下载**。解压得到一个 `NTE-RAG\` 文件夹，双击里面的 `NTE-RAG.exe` |
-| `NTE-RAG.exe`（约 40.5 MB） | `dist\NTE-RAG.exe` | 单文件版，免解压；首次启动会自解包到临时目录，稍慢，且可能被杀软/企业策略拦截 |
+| `NTE-RAG-onedir.zip` | 本次 Windows 构建目录 | **推荐下载**。解压后从 `NTE-RAG\` 运行 `NTE-RAG.exe`，同目录附项目许可和资料来源说明 |
+| `NTE-RAG.exe` | 本次 Windows 构建目录 | 单文件版，首次启动时解包到临时目录。企业策略可能限制运行。 |
 | `SHA256SUMS.txt`（可选） | 把上面两条 `Get-FileHash` 的输出存成文本 | 让用户能核对下载到的文件没被篡改 |
 
 发布注意事项：

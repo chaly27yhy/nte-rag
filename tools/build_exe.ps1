@@ -82,51 +82,52 @@ if (-not $SkipTests) {
     $selftestCode = $LASTEXITCODE
     $reportPath = Join-Path $env:NTE_RAG_DATA_DIR 'selftest_report.json'
     if ($selftestCode -ne 0) {
-        Write-Host "[警告] 源码自检未完全通过（详见 $reportPath），继续打包。" -ForegroundColor Yellow
         if (Test-Path $selftestLog) {
             Write-Host '--- 自检 stderr（末尾 20 行）---' -ForegroundColor DarkGray
             Get-Content $selftestLog -Tail 20 | ForEach-Object { Write-Host "  $_" -ForegroundColor DarkGray }
         }
+        Fail "源码自检失败（退出码 $selftestCode）。报告：$reportPath"
     } else {
         Ok '源码自检通过'
     }
 }
 
 Step '5/7 PyInstaller 打包（单文件 + 便携目录两种形态）'
-$env:TMP = Join-Path $root 'piptmp'
+$buildName = 'windows-build-' + (Get-Date -Format 'yyyyMMdd-HHmmss') + '-' + [guid]::NewGuid().ToString('N').Substring(0, 8)
+$buildRoot = Join-Path $root 'build'
+$runRoot = Join-Path $buildRoot $buildName
+$workPath = Join-Path $runRoot 'work'
+$stagedDist = Join-Path $runRoot 'output'
+$env:TMP = Join-Path $runRoot 'tmp'
 $env:TEMP = $env:TMP
 New-Item -ItemType Directory -Force $env:TMP | Out-Null
 
-# 正在运行的程序会锁住 dist 里的 exe，导致 PyInstaller 覆盖失败（WinError 5 拒绝访问）。
-# 这里先结束旧实例，避免出现难以理解的报错。
-$running = @(Get-Process -Name 'NTE-RAG' -ErrorAction SilentlyContinue)
-if ($running.Count -gt 0) {
-    Write-Host ("  发现 {0} 个正在运行的 NTE-RAG 实例，先结束它们以免占用产物文件..." -f $running.Count) -ForegroundColor Yellow
-    $running | Stop-Process -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Milliseconds 1500
-}
-Remove-Item -Recurse -Force (Join-Path $root 'build'), (Join-Path $root 'dist') -ErrorAction SilentlyContinue
-
 # 单文件版：交付最方便，但启动时需要把自身解包到临时目录
-& $python (Join-Path $root 'tools\pyinstaller_runner.py') --clean --noconfirm 'NTE-RAG.spec'
+& $python (Join-Path $root 'tools\pyinstaller_runner.py') --distpath $stagedDist --workpath $workPath --noconfirm 'NTE-RAG.spec'
 if ($LASTEXITCODE -ne 0) { Fail 'PyInstaller 单文件打包失败' }
-$exe = Join-Path $root 'dist\NTE-RAG.exe'
+$exe = Join-Path $stagedDist 'NTE-RAG.exe'
 if (-not (Test-Path $exe)) { Fail "未生成预期产物：$exe" }
 Ok '单文件版打包完成'
 
 # 便携目录版：不需要自解包，兼容性更好、启动更快
-& $python (Join-Path $root 'tools\pyinstaller_runner.py') --noconfirm 'NTE-RAG-onedir.spec'
+& $python (Join-Path $root 'tools\pyinstaller_runner.py') --distpath $stagedDist --workpath $workPath --noconfirm 'NTE-RAG-onedir.spec'
 if ($LASTEXITCODE -ne 0) { Fail 'PyInstaller 便携目录打包失败' }
-$dirExe = Join-Path $root 'dist\NTE-RAG\NTE-RAG.exe'
+$dirExe = Join-Path $stagedDist 'NTE-RAG\NTE-RAG.exe'
 if (-not (Test-Path $dirExe)) { Fail "未生成预期产物：$dirExe" }
 Ok '便携目录版打包完成'
+
+# 将项目许可和资料来源说明放在 exe 旁，解压后可以直接查看。
+$noticeFiles = @('LICENSE', 'DATA_LICENSE.md', 'THIRD_PARTY_NOTICES.md')
+foreach ($notice in $noticeFiles) {
+    Copy-Item -LiteralPath (Join-Path $root $notice) -Destination (Split-Path -Parent $dirExe)
+}
 
 # 打成 zip，方便整体拷走。
 # 注意：这里传的是**目录本身**而不是 `目录\*`。传 `\*` 时压缩包里没有顶层文件夹，
 # 用户解压会把 2600 多个文件直接倒进当前目录（实测就是这个后果）；传目录本身
 # 才会在压缩包里留下 NTE-RAG\ 这一层。
-$zip = Join-Path $root 'dist\NTE-RAG-onedir.zip'
-Compress-Archive -Path (Join-Path $root 'dist\NTE-RAG') -DestinationPath $zip -Force
+$zip = Join-Path $stagedDist 'NTE-RAG-onedir.zip'
+Compress-Archive -LiteralPath (Join-Path $stagedDist 'NTE-RAG') -DestinationPath $zip
 Ok ("便携目录已压缩：" + $zip)
 
 Step '6/7 构建后密钥扫描（exe 二进制）'
@@ -138,7 +139,7 @@ if (-not $SkipSecretScan) {
 }
 
 Step '7/7 产物核对'
-$stray = Get-ChildItem -Path (Join-Path $root 'dist') -Recurse -Force -ErrorAction SilentlyContinue |
+$stray = Get-ChildItem -LiteralPath $stagedDist -Recurse -Force |
          Where-Object { $_.Name -eq '.env' -or $_.Name -like '*.key' -or $_.Name -eq 'config.json' }
 if ($stray) {
     $names = ($stray | ForEach-Object { $_.FullName }) -join "`n"
@@ -147,12 +148,30 @@ if ($stray) {
 
 $size = [math]::Round((Get-Item $exe).Length / 1MB, 1)
 $hash = (Get-FileHash $exe -Algorithm SHA256).Hash
-$dirSize = [math]::Round(((Get-ChildItem (Join-Path $root 'dist\NTE-RAG') -Recurse -File |
+$dirSize = [math]::Round(((Get-ChildItem -LiteralPath (Join-Path $stagedDist 'NTE-RAG') -Recurse -File |
             Measure-Object -Property Length -Sum).Sum / 1MB), 1)
 # 压缩包大小要单独取：以前这里把「解压后的目录体积」当成了压缩包体积，
 # 于是 40.6 MB 的 zip 被显示成 92.5 MB，容易让人以为分发体积很大。
 $zipSize = [math]::Round((Get-Item $zip).Length / 1MB, 1)
 $version = & $python -m app.main --version
+if ($LASTEXITCODE -ne 0) { Fail '无法读取程序版本' }
+
+# 通过检查后再呈现这一批完整产物，旧候选包及便携数据沿用原目录。
+$dist = Join-Path $root 'dist'
+New-Item -ItemType Directory -Force $dist | Out-Null
+$batchOut = Join-Path $dist $buildName
+foreach ($directory in @($buildRoot, $runRoot, $stagedDist, $dist)) {
+    $item = Get-Item -LiteralPath $directory -Force
+    if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { Fail "构建目录不能是目录链接：$directory" }
+}
+if ((Resolve-Path -LiteralPath $stagedDist).Path -ne $stagedDist -or
+    (Resolve-Path -LiteralPath $dist).Path -ne $dist -or (Test-Path -LiteralPath $batchOut)) {
+    Fail '构建输出目录不符合预期'
+}
+Move-Item -LiteralPath $stagedDist -Destination $batchOut
+$exe = Join-Path $batchOut 'NTE-RAG.exe'
+$dirExe = Join-Path $batchOut 'NTE-RAG\NTE-RAG.exe'
+$zip = Join-Path $batchOut 'NTE-RAG-onedir.zip'
 Write-Host ''
 Write-Host '单文件版（推荐分发）' -ForegroundColor Green
 Write-Host "  产物   : $exe"

@@ -1,7 +1,7 @@
 {
   "version": 1,
   "generated_at": "2026-09-22T04:04:47",
-  "note": "结构化字段专项题集：21 道题，取材于 BWIKI 页面模板原文，考察模板字段（配音、生日、基础数值、弧盘分类与效果数值等）的抽取质量。expected_points 逐字读自缓存原文，不由模型生成；expected_sources 给出该字段所在的 BWIKI 页面。build_eval_set.py 出题时以基线种子做区分度守卫，答案已存在于知识库的题会被剔除。review.status 记录审核状态：pending 为自动生成、尚未审核，ok 为已确认题目与要点正确，fixed 为审核中修正过要点、来源或标签，drop 为剔除、不参与评测。review.comment 记录该题的复核结论与理由。审核结果只写进 review 的两个字段：JSON 不支持注释，写在结构外面会让文件无法解析。",
+  "note": "结构化字段专项题集：21 道题，取材于 BWIKI 页面模板原文，考察模板字段（配音、生日、基础数值、弧盘分类与效果数值等）的抽取质量。expected_points 和 expected_sources 最初取自 BWIKI 缓存，后续复核可更新为核对过的答案与来源，依据见 review.comment。build_eval_set.py 出题时以基线种子做区分度守卫，答案已存在于知识库的题会被剔除。review.status 记录审核状态：pending 为自动生成、尚未审核，ok 为已确认题目与要点正确，fixed 为审核中修正过要点、来源或标签，drop 为剔除、不参与评测。review.comment 记录该题的复核结论与理由。审核结果只写进 review 的两个字段：JSON 不支持注释，写在结构外面会让文件无法解析。",
   "items": [
     {
       "question": "角色「九原」的中文配音（CV）是谁？",
@@ -9,48 +9,48 @@
         "张安琪"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E4%B9%9D%E5%8E%9F"
+        "https://www.ntestation.com/%E4%B9%9D%E5%8E%9F"
       ],
       "category": "角色",
       "difficulty": "medium",
       "answerable": true,
       "review": {
         "status": "fixed",
-        "comment": "复核结论（2026-09-22）：中配张安琪、日配田中理惠，经萌娘百科与百度百科交叉验证。BWIKI 模板里的「宋媛媛」是残留/错位（与娜娜莉撞值），已由 tools/manual_facts.py 更正。"
+        "comment": "异环信息站和环世全鉴的中文配音字段均为张安琪，番组计划亦列出该配音。旧 BWIKI 的宋媛媛为历史误例。"
       },
       "id": "api001"
     },
     {
-      "question": "角色「九原」的基础攻击是多少？",
+      "question": "1.5 版本里，九原 1 级面板的攻击力是多少？",
       "expected_points": [
-        "327"
+        "维护者实拍的1.5版本九原1级面板攻击力为82"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E4%B9%9D%E5%8E%9F"
+        "https://m.wywyx.com/wiki/578618.html"
       ],
       "category": "角色",
       "difficulty": "medium",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "以维护者确认的1.5版本、1级角色面板为准。旧 BWIKI 的 327 缺少可比条件，留在历史档案。玩一玩历史快照佐证读数 82。"
       },
       "id": "api002"
     },
     {
-      "question": "角色「九原」的基础生命是多少？",
+      "question": "1.5 版本里，九原 1 级面板的生命值是多少？",
       "expected_points": [
-        "5846"
+        "维护者实拍的1.5版本九原1级面板生命值为1290"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E4%B9%9D%E5%8E%9F"
+        "https://m.wywyx.com/wiki/578618.html"
       ],
       "category": "角色",
       "difficulty": "medium",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "以维护者确认的1.5版本、1级角色面板为准。旧 BWIKI 的 5846 另在真实资料题中保留为历史误例。玩一玩历史快照佐证读数 1290。"
       },
       "id": "api003"
     },
@@ -60,31 +60,31 @@
         "3月27日"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E5%93%88%E5%B0%BC%E5%A8%85"
+        "https://www.ntestation.com/%E5%93%88%E5%B0%BC%E5%A8%85"
       ],
       "category": "角色",
       "difficulty": "medium",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "异环信息站的生日字段为3月27日，HN 玩新聞角色档案给出相同日期。"
       },
       "id": "api004"
     },
     {
-      "question": "角色「哈尼娅」的配音（CV）是谁？",
+      "question": "角色「哈尼娅」的中文配音（CV）是谁？",
       "expected_points": [
         "苏子芜"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E5%93%88%E5%B0%BC%E5%A8%85"
+        "https://www.ntestation.com/%E5%93%88%E5%B0%BC%E5%A8%85"
       ],
       "category": "角色",
       "difficulty": "medium",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "异环信息站、环世全鉴与前瞻配音名单整理均列苏子芜。"
       },
       "id": "api005"
     },
@@ -94,31 +94,31 @@
         "8月29日"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E5%93%88%E7%B4%A2%E5%B0%94"
+        "https://www.ntestation.com/%E5%93%88%E7%B4%A2%E5%B0%94"
       ],
       "category": "角色",
       "difficulty": "medium",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "异环信息站、游侠网角色档案与玩家生日分享均为8月29日。"
       },
       "id": "api006"
     },
     {
-      "question": "角色「哈索尔」的配音（CV）是谁？",
+      "question": "角色「哈索尔」的中文配音（CV）是谁？",
       "expected_points": [
         "洪海天"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E5%93%88%E7%B4%A2%E5%B0%94"
+        "https://www.bilibili.com/video/BV19gNo68E78/"
       ],
       "category": "角色",
       "difficulty": "medium",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "海天配音工作室参配名单直接列出哈索尔和洪海天的对应关系。"
       },
       "id": "api007"
     },
@@ -128,241 +128,261 @@
         "10月7日"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E5%9F%83%E5%BE%B7%E5%98%89"
-      ],
-      "category": "角色",
-      "difficulty": "medium",
-      "answerable": true,
-      "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
-      },
-      "id": "api008"
-    },
-    {
-      "question": "角色「埃德嘉」的配音（CV）是谁？",
-      "expected_points": [
-        "四白"
-      ],
-      "expected_sources": [
-        "https://wiki.biligame.com/yh/%E5%9F%83%E5%BE%B7%E5%98%89"
-      ],
-      "category": "角色",
-      "difficulty": "medium",
-      "answerable": true,
-      "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
-      },
-      "id": "api009"
-    },
-    {
-      "question": "角色「娜娜莉」的配音（CV）是谁？",
-      "expected_points": [
-        "宋媛媛"
-      ],
-      "expected_sources": [
-        "https://wiki.biligame.com/yh/%E5%A8%9C%E5%A8%9C%E8%8E%89"
+        "https://www.ntestation.com/%E5%9F%83%E5%BE%B7%E5%98%89"
       ],
       "category": "角色",
       "difficulty": "medium",
       "answerable": true,
       "review": {
         "status": "fixed",
-        "comment": "复核结论（2026-09-22）：中配宋媛媛、日配竹达彩奈，两者各自正确（与九原不再是「撞值」）。答案已由 tools/manual_facts.py 的 FACT_UPDATES 补全为「宋媛媛（中）/竹达彩奈（日）」。"
+        "comment": "异环信息站的生日字段与角色一览资料均为10月7日。"
+      },
+      "id": "api008"
+    },
+    {
+      "question": "角色「埃德嘉」的中文配音（CV）是谁？",
+      "expected_points": [
+        "四白"
+      ],
+      "expected_sources": [
+        "https://www.ntestation.com/%E5%9F%83%E5%BE%B7%E5%98%89"
+      ],
+      "category": "角色",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "fixed",
+        "comment": "异环信息站与前瞻配音名单整理均列四白。"
+      },
+      "id": "api009"
+    },
+    {
+      "question": "角色「娜娜莉」的中文配音（CV）是谁？",
+      "expected_points": [
+        "宋媛媛"
+      ],
+      "expected_sources": [
+        "https://www.bilibili.com/video/BV19gNo68E78/"
+      ],
+      "category": "角色",
+      "difficulty": "medium",
+      "answerable": true,
+      "review": {
+        "status": "fixed",
+        "comment": "海天工作室的参配名单明确将娜娜莉对应到宋媛媛，环世全鉴和异环信息站的中文配音字段一致。"
       },
       "id": "api010"
     },
     {
       "question": "弧盘「「我们。」」的适用分类是什么？",
       "expected_points": [
-        "等离子"
+        "弧盘类型（适用分类）为等离子类"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E3%80%8C%E6%88%91%E4%BB%AC%E3%80%82%E3%80%8D"
+        "https://www.ntestation.com/%E6%88%91%E4%BB%AC%E3%80%82"
       ],
       "category": "弧盘",
       "difficulty": "medium",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "异环信息站和 GameWith 的弧盘类型字段均为等离子。"
       },
       "id": "api011"
     },
     {
-      "question": "弧盘「「我们。」」的效果描述里提到了哪些数值？",
+      "question": "国服 1.5 版本里，弧盘「我们。」的 1 阶效果是多少？",
       "expected_points": [
-        "12.00%"
+        "1阶「原核体」使装备者普通攻击伤害提高12%，按已核国服公告沿用同阶图鉴数值"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E3%80%8C%E6%88%91%E4%BB%AC%E3%80%82%E3%80%8D"
+        "https://www.ntestation.com/%E6%88%91%E4%BB%AC%E3%80%82"
+      ],
+      "required_evidence_sources": [
+        "https://www.ntestation.com/%E6%88%91%E4%BB%AC%E3%80%82",
+        "https://yh.wanmei.com/m/news/gamebroad/20261104/264868.html"
       ],
       "category": "弧盘",
       "difficulty": "hard",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "异环信息站首档和 GameWith 默认档均显示普通攻击伤害提高12%，所核国服公告未列调整。"
       },
       "id": "api012"
     },
     {
       "question": "弧盘「「最后一朵玫瑰」」的适用分类是什么？",
       "expected_points": [
-        "液态"
+        "弧盘类型（适用分类）为液态类"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E3%80%8C%E6%9C%80%E5%90%8E%E4%B8%80%E6%9C%B5%E7%8E%AB%E7%91%B0%E3%80%8D"
+        "https://www.ntestation.com/%E6%9C%80%E5%90%8E%E4%B8%80%E6%9C%B5%E7%8E%AB%E7%91%B0"
       ],
       "category": "弧盘",
       "difficulty": "medium",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "异环信息站和 GameWith 的弧盘类型字段均为液态。页面未标注对应的游戏版本及区服。"
       },
       "id": "api013"
     },
     {
-      "question": "弧盘「「最后一朵玫瑰」」的效果描述里提到了哪些数值？",
+      "question": "国服 1.5 版本里，「最后一朵玫瑰」的 1 阶效果有哪些数值？",
       "expected_points": [
-        "14.00%",
-        "6.00%",
-        "3秒"
+        "1阶「落拓玫瑰」提升攻击力14%，按已核国服公告沿用公开图鉴数值",
+        "造成持续伤害叠暗棘，每层提高暴击伤害6%，持续3秒",
+        "0.3秒至多叠一层，最多10层，变轨技能立即叠10层",
+        "对已倾陷敌人造成伤害时，倾陷延长3秒，每次倾陷最多触发一次"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E3%80%8C%E6%9C%80%E5%90%8E%E4%B8%80%E6%9C%B5%E7%8E%AB%E7%91%B0%E3%80%8D"
+        "https://www.ntestation.com/%E6%9C%80%E5%90%8E%E4%B8%80%E6%9C%B5%E7%8E%AB%E7%91%B0"
+      ],
+      "required_evidence_sources": [
+        "https://www.ntestation.com/%E6%9C%80%E5%90%8E%E4%B8%80%E6%9C%B5%E7%8E%AB%E7%91%B0",
+        "https://yh.wanmei.com/m/news/gamebroad/20261104/264868.html"
       ],
       "category": "弧盘",
       "difficulty": "hard",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "异环信息站首档和 GameWith 默认调弧档一致。按国服已核公告沿用到1.5；两个3秒分别对应暗棘持续时间与倾陷延长。"
       },
       "id": "api014"
     },
     {
       "question": "弧盘「「电音」狂欢」的适用分类是什么？",
       "expected_points": [
-        "液态"
+        "弧盘类型（适用分类）为液态类"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E3%80%8C%E7%94%B5%E9%9F%B3%E3%80%8D%E7%8B%82%E6%AC%A2"
+        "https://gamewith.ai/nte/zh-CN/arc/real-music"
       ],
       "category": "弧盘",
       "difficulty": "medium",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "GameWith 简中图鉴和呗果的类型字段均为液态。"
       },
       "id": "api015"
     },
     {
-      "question": "弧盘「「电音」狂欢」的效果描述里提到了哪些数值？",
+      "question": "国服 1.5 版本里，弧盘「电音」狂欢的 1 阶效果是多少？",
       "expected_points": [
-        "12.00%"
+        "1阶使装备者的变轨技能伤害提高12%，按已核国服公告沿用同阶图鉴数值"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E3%80%8C%E7%94%B5%E9%9F%B3%E3%80%8D%E7%8B%82%E6%AC%A2"
+        "https://gamewith.net/nte/74425"
+      ],
+      "required_evidence_sources": [
+        "https://gamewith.net/nte/74425",
+        "https://yh.wanmei.com/m/news/gamebroad/20261104/264868.html"
       ],
       "category": "弧盘",
       "difficulty": "hard",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "GameWith 默认档及 Neverness 一阶数值均为变轨技能伤害提高12%，所核国服公告未列调整。网页上的中文效果名称有差异。"
       },
       "id": "api016"
     },
     {
       "question": "弧盘「「银河暂留」」的适用分类是什么？",
       "expected_points": [
-        "等离子"
+        "弧盘类型（适用分类）为等离子类"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E3%80%8C%E9%93%B6%E6%B2%B3%E6%9A%82%E7%95%99%E3%80%8D"
+        "https://www.ntestation.com/%E9%93%B6%E6%B2%B3%E6%9A%82%E7%95%99"
       ],
       "category": "弧盘",
       "difficulty": "medium",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "异环信息站和 GameWith 的弧盘类型字段均为等离子。页面未标注对应的游戏版本及区服。"
       },
       "id": "api017"
     },
     {
       "question": "弧盘「「银河暂留」」的获取途径是什么？",
       "expected_points": [
-        "签到10天送"
+        "国服公测签到活动第10天曾发放「银河暂留」"
+      ],
+      "expected_unknowns": [
+        "现版本是否仍能领取或有其他获取途径待核实"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E3%80%8C%E9%93%B6%E6%B2%B3%E6%9A%82%E7%95%99%E3%80%8D"
+        "https://www.taptap.cn/moment/796429909030338680"
       ],
       "category": "弧盘",
       "difficulty": "medium",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "来源试点复核：国服公测签到攻略与 NTE 异环攻略站均明确记载第 10 天。旧 BWIKI 的「签到10天送」缺少活动范围，此处按公测活动记录处理。"
       },
       "id": "api018"
     },
     {
-      "question": "弧盘「「银河暂留」」的效果描述里提到了哪些数值？",
+      "question": "国服 1.5 版本里，「银河暂留」的 1 阶效果有哪些数值？",
       "expected_points": [
-        "12.00%",
-        "2.00%",
-        "5秒"
+        "1阶「水星图」提高魂属性异能伤害12%，按已核国服公告沿用公开图鉴数值",
+        "造成魂属性异能伤害时，每层提高暴击伤害2%，持续5秒",
+        "最多叠加10层，每0.1秒至多叠一层"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E3%80%8C%E9%93%B6%E6%B2%B3%E6%9A%82%E7%95%99%E3%80%8D"
+        "https://www.ntestation.com/%E9%93%B6%E6%B2%B3%E6%9A%82%E7%95%99"
+      ],
+      "required_evidence_sources": [
+        "https://www.ntestation.com/%E9%93%B6%E6%B2%B3%E6%9A%82%E7%95%99",
+        "https://yh.wanmei.com/m/news/gamebroad/20261104/264868.html"
       ],
       "category": "弧盘",
       "difficulty": "hard",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "异环信息站首档和 GameWith 默认调弧档一致，按国服已核公告沿用到1.5。获取方式由 api018 单独验证。"
       },
       "id": "api019"
     },
     {
       "question": "弧盘「不屈之绵」的适用分类是什么？",
       "expected_points": [
-        "等离子"
+        "弧盘适用分类（即弧盘类型）为等离子类"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E4%B8%8D%E5%B1%88%E4%B9%8B%E7%BB%B5"
+        "https://wiki.mysqil.com/weapons/buquzhimian"
       ],
       "category": "弧盘",
       "difficulty": "medium",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "环世全鉴、异环信息站和客户端弧盘详情均标为等离子。实拍属于维护者确认的1.5版本。"
       },
       "id": "api020"
     },
     {
       "question": "弧盘「不屈之绵」的效果描述里提到了哪些数值？",
       "expected_points": [
-        "22.00%",
-        "50%",
-        "28.00%"
+        "1阶「拳击糖」仅对等离子适配者生效",
+        "装备者造成的伤害增加22%",
+        "对生命值低于50%的敌人，伤害加成提升至28%"
       ],
       "expected_sources": [
-        "https://wiki.biligame.com/yh/%E4%B8%8D%E5%B1%88%E4%B9%8B%E7%BB%B5"
+        "https://wiki.mysqil.com/weapons/buquzhimian"
       ],
       "category": "弧盘",
       "difficulty": "hard",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": "复核结论（2026-09-22）：要点直接读自 BWIKI 模板原文（缓存），非模型生成。"
+        "status": "fixed",
+        "comment": "维护者确认实拍来自1.5版本，截图直接确认1阶及等离子适配条件。环世全鉴的效果页作公开佐证，攻击力另作80级面板记录。"
       },
       "id": "api021"
     }

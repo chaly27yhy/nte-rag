@@ -18,6 +18,7 @@ import math
 import re
 import sqlite3
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
@@ -30,7 +31,10 @@ from .chunk import simhash64
 
 # 2：facts 表加 version / effective_from（版本化与时效，见 app/core/versioning.py）
 # 3：facts 表加 date_kind（区分「生效于」还是「发布于」，避免把公告发布日说成生效日）
-SCHEMA_VERSION = 3
+# 4：topic_queue 记录连续重试次数与下次可处理的时间。
+SCHEMA_VERSION = 4
+FACT_EXTRACTION_META = "fact_extraction"
+_ENTITY_MARKS_RE = re.compile(r"[「」『』“”\"'《》【】()（）\s]")
 
 # LIKE 兜底查询的分词上限。
 # SQLite 的表达式树深度上限默认是 1000，而 LIKE 兜底是把每个分词拼成一项
@@ -140,6 +144,8 @@ CREATE TABLE IF NOT EXISTS topic_queue (
     priority   INTEGER NOT NULL DEFAULT 5,
     hits       INTEGER NOT NULL DEFAULT 0,
     last_run   TEXT NOT NULL DEFAULT '',
+    retry_count INTEGER NOT NULL DEFAULT 0,
+    next_retry_at REAL NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL
 );
 """
@@ -193,6 +199,14 @@ def _prefer_newest_in_slot(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 def _now() -> str:
     return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+
+
+def _document_meta(raw: str) -> Dict[str, Any]:
+    try:
+        meta = json.loads(raw)
+    except (TypeError, ValueError):
+        return {}
+    return meta if isinstance(meta, dict) else {}
 
 
 # SQLite 的 INTEGER 是有符号 64 位，而 SimHash 是无符号 64 位。
@@ -256,11 +270,21 @@ class KnowledgeBase:
     def __init__(self, db_file: Optional[Path] = None) -> None:
         self.path = Path(db_file) if db_file else paths.db_path()
         self._lock = threading.RLock()
+        self._page_locks = tuple(threading.Lock() for _ in range(32))
         self._conn = sqlite3.connect(str(self.path), check_same_thread=False, timeout=30)
         self._conn.row_factory = sqlite3.Row
         self.fts_enabled = False
         try:
             self._init_schema()
+            self._conn.create_function("source_paused", 2, curation.source_paused, deterministic=True)
+            self._conn.create_function("revoked_fact", 2, curation.revoked_fact, deterministic=True)
+            self._conn.executescript("""
+                CREATE TEMP VIEW usable_facts AS
+                    SELECT * FROM main.facts
+                    WHERE NOT source_paused(source_url, tags) AND NOT revoked_fact(source_url, title);
+                CREATE TEMP VIEW usable_documents AS
+                    SELECT * FROM main.documents WHERE NOT source_paused(url, '');
+            """)
         except BaseException:
             # 初始化中途失败（最典型的是库里写着比本程序更高的 schema_version）时，
             # 构造函数没有返回值，调用方拿不到这个实例，也就没人能关掉这条连接：
@@ -337,7 +361,11 @@ class KnowledgeBase:
                 # simhash 高 16 位（桶）：预筛近邻用，见 find_similar_facts()。
                 # 默认 -1 表示「还没算过」，migrate 时会补齐。
                 "sim_bucket": "INTEGER NOT NULL DEFAULT -1",
-            }
+            },
+            "topic_queue": {
+                "retry_count": "INTEGER NOT NULL DEFAULT 0",
+                "next_retry_at": "REAL NOT NULL DEFAULT 0",
+            },
         }
         for table, columns in additions.items():
             existing = {
@@ -424,6 +452,10 @@ class KnowledgeBase:
     # documents
     # ------------------------------------------------------------------
 
+    def page_lock(self, url: str):
+        """串行处理同一网页，等待模型时仍可访问数据库。"""
+        return self._page_locks[hash(url) % len(self._page_locks)]
+
     def upsert_document(
         self,
         url: str,
@@ -434,12 +466,17 @@ class KnowledgeBase:
         http_status: int = 200,
         published_at: str = "",
         meta: Optional[Dict[str, Any]] = None,
+        *,
+        chunks: Optional[Sequence[str]] = None,
     ) -> Tuple[int, bool]:
-        """写入/更新文档记录。返回 (doc_id, 内容是否有变化)。"""
+        """写入文档，可在同一事务里替换变化的正文切片。返回 (doc_id, changed)。"""
         now = _now()
-        with self._lock:
+        page_meta = dict(meta or {})
+        page_meta.pop(FACT_EXTRACTION_META, None)
+        with self._lock, self._conn:
+            self._conn.execute("BEGIN IMMEDIATE")
             row = self._conn.execute(
-                "SELECT id, content_hash FROM documents WHERE url=?", (url,)
+                "SELECT id, content_hash, meta, status FROM documents WHERE url=?", (url,)
             ).fetchone()
             if row is None:
                 cursor = self._conn.execute(
@@ -449,24 +486,80 @@ class KnowledgeBase:
                        VALUES (?,?,?,?,?,?,?,?,?,?, 'active')""",
                     (
                         url, title, site, source_type, text_hash, published_at,
-                        now, now, http_status, json.dumps(meta or {}, ensure_ascii=False),
+                        now, now, http_status, json.dumps(page_meta, ensure_ascii=False),
                     ),
                 )
-                self._conn.commit()
-                return int(cursor.lastrowid), True
-            doc_id = int(row["id"])
-            changed = row["content_hash"] != text_hash
-            self._conn.execute(
-                """UPDATE documents SET title=?, site=?, source_type=?, content_hash=?,
-                       published_at=?, fetched_at=?, updated_at=?, http_status=?, meta=?, status='active'
-                   WHERE id=?""",
-                (
-                    title, site, source_type, text_hash, published_at, now, now,
-                    http_status, json.dumps(meta or {}, ensure_ascii=False), doc_id,
-                ),
-            )
-            self._conn.commit()
+                doc_id, changed = int(cursor.lastrowid), True
+            else:
+                doc_id = int(row["id"])
+                if (
+                    page_meta.get("content_kind") == "reviewed_summary"
+                    and row["status"] == "active"
+                    and _document_meta(row["meta"]).get("content_kind") != "reviewed_summary"
+                    and self._conn.execute(
+                        "SELECT 1 FROM chunks WHERE doc_id=? AND status='active' LIMIT 1", (doc_id,)
+                    ).fetchone()
+                ):
+                    # 导入简短的内置摘要时，保留已经抓到的同页正文及派生事实。
+                    return doc_id, False
+                content_changed = row["content_hash"] != text_hash
+                changed = content_changed
+                if chunks is not None and not changed:
+                    # 旧版分两次提交文档和切片，补齐没有切片的遗留记录。
+                    has_chunks = self._conn.execute(
+                        "SELECT 1 FROM chunks WHERE doc_id=? AND status='active' LIMIT 1", (doc_id,)
+                    ).fetchone()
+                    changed = row["status"] != "active" or (bool(chunks) and not has_chunks)
+                if not changed:
+                    done = _document_meta(row["meta"]).get(FACT_EXTRACTION_META)
+                    if isinstance(done, dict):
+                        page_meta[FACT_EXTRACTION_META] = done
+                self._conn.execute(
+                    """UPDATE documents SET title=?, site=?, source_type=?, content_hash=?,
+                           published_at=?, fetched_at=?, updated_at=?, http_status=?, meta=?, status='active'
+                       WHERE id=?""",
+                    (
+                        title, site, source_type, text_hash, published_at, now, now,
+                        http_status, json.dumps(page_meta, ensure_ascii=False), doc_id,
+                    ),
+                )
+                if content_changed:
+                    # 这些条目来自上一版正文。新切片和旧条目退出检索须同时生效。
+                    # API 模板字段由独立采集流程维护，手写条目也不随网页正文变更。
+                    self._conn.execute(
+                        """UPDATE facts SET status='superseded', updated_at=?
+                           WHERE source_url=? AND source_type<>'manual'
+                             AND extraction IN ('', 'llm', 'table')
+                             AND status IN ('active', 'conflict')""",
+                        (now, url),
+                    )
+            if changed and chunks is not None:
+                self._replace_chunks(doc_id, chunks, None)
             return doc_id, changed
+
+    def document_extraction(self, doc_id: int, text_hash: str) -> Optional[Dict[str, str]]:
+        row = self.get_document(doc_id)
+        if not row or row["content_hash"] != text_hash or row["status"] != "active":
+            return None
+        done = _document_meta(row["meta"]).get(FACT_EXTRACTION_META)
+        return done if isinstance(done, dict) else {}
+
+    def mark_document_extracted(self, doc_id: int, text_hash: str, step: str, version: str) -> None:
+        with self._lock, self._conn:
+            self._conn.execute("BEGIN IMMEDIATE")
+            row = self._conn.execute(
+                "SELECT meta FROM documents WHERE id=? AND content_hash=? AND status='active'",
+                (doc_id, text_hash),
+            ).fetchone()
+            if not row:
+                return
+            meta = _document_meta(row["meta"])
+            done = meta.get(FACT_EXTRACTION_META)
+            meta[FACT_EXTRACTION_META] = {**(done if isinstance(done, dict) else {}), step: version}
+            self._conn.execute(
+                "UPDATE documents SET meta=? WHERE id=?",
+                (json.dumps(meta, ensure_ascii=False), doc_id),
+            )
 
     def get_document(self, doc_id: int) -> Optional[Dict[str, Any]]:
         with self._lock:
@@ -476,7 +569,8 @@ class KnowledgeBase:
     def list_documents(
         self, limit: int = 50, offset: int = 0, keyword: str = "", source_type: str = ""
     ) -> List[Dict[str, Any]]:
-        sql = ["SELECT d.*, (SELECT COUNT(1) FROM chunks c WHERE c.doc_id=d.id) AS chunk_count FROM documents d WHERE 1=1"]
+        sql = ["""SELECT d.*, (SELECT COUNT(1) FROM chunks c WHERE c.doc_id=d.id) AS chunk_count
+                  FROM usable_documents d WHERE 1=1"""]
         params: List[Any] = []
         if keyword:
             sql.append("AND (d.title LIKE ? OR d.url LIKE ?)")
@@ -550,37 +644,39 @@ class KnowledgeBase:
 
     def replace_chunks(self, doc_id: int, texts: Sequence[str], embeddings: Optional[Sequence[Sequence[float]]] = None) -> int:
         """用新切块替换该文档的旧切块。返回写入的块数。"""
+        with self._lock, self._conn:
+            return self._replace_chunks(doc_id, texts, embeddings)
+
+    def _replace_chunks(
+        self, doc_id: int, texts: Sequence[str], embeddings: Optional[Sequence[Sequence[float]]],
+    ) -> int:
         now = _now()
-        with self._lock:
+        if self.fts_enabled:
+            self._conn.execute(
+                "DELETE FROM chunks_fts WHERE rowid IN (SELECT id FROM chunks WHERE doc_id=?)",
+                (doc_id,),
+            )
+        self._conn.execute("DELETE FROM chunks WHERE doc_id=?", (doc_id,))
+        for index, text in enumerate(texts):
+            tokens = chunkmod.tokens_to_index(chunkmod.tokenize(text))
+            blob = None
+            if embeddings and index < len(embeddings) and embeddings[index]:
+                blob = embed_to_blob(embeddings[index])
+            cursor = self._conn.execute(
+                """INSERT INTO chunks
+                   (doc_id, ord, text, tokens, char_len, simhash, embedding, status, created_at, updated_at)
+                   VALUES (?,?,?,?,?,?,?, 'active', ?, ?)""",
+                (
+                    doc_id, index, text, tokens, len(text), _to_db_int(simhash64(text)),
+                    blob, now, now,
+                ),
+            )
             if self.fts_enabled:
                 self._conn.execute(
-                    "DELETE FROM chunks_fts WHERE rowid IN (SELECT id FROM chunks WHERE doc_id=?)",
-                    (doc_id,),
+                    "INSERT INTO chunks_fts(rowid, tokens) VALUES (?, ?)",
+                    (int(cursor.lastrowid), tokens),
                 )
-            self._conn.execute("DELETE FROM chunks WHERE doc_id=?", (doc_id,))
-            count = 0
-            for index, text in enumerate(texts):
-                tokens = chunkmod.tokens_to_index(chunkmod.tokenize(text))
-                blob = None
-                if embeddings and index < len(embeddings) and embeddings[index]:
-                    blob = embed_to_blob(embeddings[index])
-                cursor = self._conn.execute(
-                    """INSERT INTO chunks
-                       (doc_id, ord, text, tokens, char_len, simhash, embedding, status, created_at, updated_at)
-                       VALUES (?,?,?,?,?,?,?, 'active', ?, ?)""",
-                    (
-                        doc_id, index, text, tokens, len(text), _to_db_int(simhash64(text)),
-                        blob, now, now,
-                    ),
-                )
-                if self.fts_enabled:
-                    self._conn.execute(
-                        "INSERT INTO chunks_fts(rowid, tokens) VALUES (?, ?)",
-                        (int(cursor.lastrowid), tokens),
-                    )
-                count += 1
-            self._conn.commit()
-        return count
+        return len(texts)
 
     def get_chunk(self, chunk_id: int) -> Optional[Dict[str, Any]]:
         with self._lock:
@@ -739,7 +835,7 @@ class KnowledgeBase:
         placeholders = ",".join("?" * len(buckets))
         with self._lock:
             rows = self._conn.execute(
-                f"""SELECT * FROM facts
+                f"""SELECT * FROM usable_facts
                     WHERE status IN ('active','conflict') AND sim_bucket IN ({placeholders})
                     ORDER BY updated_at DESC LIMIT ?""",
                 (*sorted(buckets), int(cap)),
@@ -756,7 +852,7 @@ class KnowledgeBase:
             return []
         with self._lock:
             rows = self._conn.execute(
-                "SELECT * FROM facts WHERE status IN ('active','conflict') AND title=? "
+                "SELECT * FROM usable_facts WHERE status IN ('active','conflict') AND title=? "
                 "ORDER BY confidence DESC, updated_at DESC LIMIT ?",
                 (title, int(limit)),
             ).fetchall()
@@ -765,7 +861,7 @@ class KnowledgeBase:
     def list_facts(
         self, limit: int = 50, offset: int = 0, keyword: str = "", status: str = "", topic: str = ""
     ) -> List[Dict[str, Any]]:
-        sql = ["SELECT * FROM facts WHERE 1=1"]
+        sql = ["SELECT * FROM usable_facts WHERE 1=1"]
         params: List[Any] = []
         if topic:
             sql.append("AND topic=?")
@@ -790,7 +886,7 @@ class KnowledgeBase:
         过滤掉过短/过长的标题：过短的（如「薄荷」）套不出像样的问句，
         过长的多半是从表格里拼出来的句子，直接当问题很别扭。
         """
-        sql = ["SELECT * FROM facts WHERE 1=1"]
+        sql = ["SELECT * FROM usable_facts WHERE 1=1"]
         params: List[Any] = []
         if status:
             sql.append("AND status=?")
@@ -848,7 +944,7 @@ class KnowledgeBase:
                 try:
                     rows = self._conn.execute(
                         """SELECT f.*, bm25(facts_fts) AS bm
-                           FROM facts_fts JOIN facts f ON f.id = facts_fts.rowid
+                           FROM facts_fts JOIN usable_facts f ON f.id = facts_fts.rowid
                            WHERE facts_fts MATCH ? AND f.status IN ('active','conflict')
                            ORDER BY bm LIMIT ?""",
                         (expression, int(pool)),
@@ -864,7 +960,7 @@ class KnowledgeBase:
                     rows = self._like_facts(tokens, pool)
             else:
                 rows = self._like_facts(tokens, pool)
-        query_norm = chunkmod.normalize(query)
+        query_norm = _ENTITY_MARKS_RE.sub("", chunkmod.normalize(query))
         scored = [self._score_fact(dict(r), tokens, query_norm) for r in rows]
         # 排序依据（从强到弱）：
         # ① entity_hit——问题里点名了这个条目所属的实体（标题 `X·字段` 的 X 出现在问题里），
@@ -883,7 +979,18 @@ class KnowledgeBase:
         )
         # 排完序再做一次「同槽位取新版」的调整（见 _prefer_newest_in_slot）：
         # 这件事必须放在候选池（4×limit）上做，否则新版条目可能刚好落在窗口外。
-        return _prefer_newest_in_slot(scored)[: int(limit)]
+        ranked = _prefer_newest_in_slot(scored)
+        # 比较题先给每个点名实体留一条证据，余下名额仍按原排序填充。
+        first_hits, remaining = [], []
+        covered_entities: set[str] = set()
+        for item in ranked:
+            entity = self.entity_of(item["title"]) if item["entity_hit"] else ""
+            if entity and entity not in covered_entities:
+                covered_entities.add(entity)
+                first_hits.append(item)
+            else:
+                remaining.append(item)
+        return (first_hits + remaining)[: int(limit)]
 
     def _like_facts(self, tokens: Sequence[str], limit: int) -> List[sqlite3.Row]:
         """LIKE 兜底召回（无 FTS5 / FTS 报错时走这里）。
@@ -901,7 +1008,7 @@ class KnowledgeBase:
             params.extend([f"%{token}%"] * 3)
         try:
             return self._conn.execute(
-                f"""SELECT *, 0.0 AS bm FROM facts
+                f"""SELECT *, 0.0 AS bm FROM usable_facts
                     WHERE status IN ('active','conflict') AND ({clause})
                     ORDER BY confidence DESC, updated_at DESC LIMIT ?""",
                 (*params, int(limit)),
@@ -911,11 +1018,37 @@ class KnowledgeBase:
             return []
 
     @staticmethod
+    def normalize_entity(text: Any) -> str:
+        return _ENTITY_MARKS_RE.sub("", chunkmod.normalize(str(text or "")))
+
+    def mentioned_entities(self, question: str) -> List[str]:
+        """用可检索条目的实体名识别历史问题中明确点名的对象。"""
+        text = self.normalize_entity(question)
+        with self._lock:
+            names = self._conn.execute(
+                "SELECT DISTINCT substr(title, 1, instr(title, '·') - 1) AS name "
+                "FROM usable_facts WHERE instr(title, '·') > 1 AND status IN ('active','conflict')"
+            ).fetchall()
+        matches = {}
+        for row in names:
+            name = self.normalize_entity(row["name"])
+            if len(name) >= 2 and name in text:
+                matches.setdefault(name, row["name"])
+        spans: List[Tuple[int, int]] = []
+        result = []
+        for name in sorted(matches, key=lambda value: (text.index(value), -len(value), value)):
+            start = text.index(name)
+            end = start + len(name)
+            if all(end <= first or start >= last for first, last in spans):
+                spans.append((start, end))
+                result.append(matches[name])
+        return result
+
+    @staticmethod
     def entity_of(title: Any) -> str:
         """条目标题里的实体名：`「我们。」·描述` → `我们。`（去字段后缀与引号）。"""
         head = str(title or "").split("·")[0]
-        head = re.sub(r"[「」『』“”\"'《》【】()（）\s]", "", head)
-        return chunkmod.normalize(head)
+        return KnowledgeBase.normalize_entity(head)
 
     @classmethod
     def _score_fact(
@@ -931,7 +1064,7 @@ class KnowledgeBase:
         # 分母取 min(len(tokens), 3)：短问题（「薄荷的声优是谁」）不该因为标题只命中一个词就被判低分
         title_coverage = min(1.0, title_hit / max(1, min(len(tokens), 3)))
         entity = cls.entity_of(row.get("title"))
-        # 实体必须在问题里**原样出现**才算命中：只按词命中会把「异环」「角色」这类泛词算进来
+        # 标题和问题统一去掉引号后再匹配全名，兼容「电音」狂欢这种中间带引号的专名。
         entity_hit = 1.0 if len(entity) >= 2 and entity in query_norm else 0.0
         row["coverage"] = round(coverage, 4)
         # relevance 的算法**保持不变**：它同时被「本地资料够不够」的阈值
@@ -965,7 +1098,7 @@ class KnowledgeBase:
                                   d.url, d.title, d.source_type, d.site, d.updated_at AS doc_updated,
                                   bm25(chunks_fts) AS bm
                            FROM chunks_fts JOIN chunks c ON c.id = chunks_fts.rowid
-                           JOIN documents d ON d.id = c.doc_id
+                           JOIN usable_documents d ON d.id = c.doc_id
                            WHERE chunks_fts MATCH ? AND c.status='active' AND d.status='active'
                            ORDER BY bm LIMIT ?""",
                         (expression, pool),
@@ -983,7 +1116,7 @@ class KnowledgeBase:
                         f"""SELECT c.id, c.doc_id, c.text, c.ord, c.simhash, c.embedding,
                                    d.url, d.title, d.source_type, d.site, d.updated_at AS doc_updated,
                                    0.0 AS bm
-                            FROM chunks c JOIN documents d ON d.id=c.doc_id
+                            FROM chunks c JOIN usable_documents d ON d.id=c.doc_id
                             WHERE c.status='active' AND d.status='active' AND ({clause})
                             ORDER BY c.ord LIMIT ?""",
                         (*[f"%{t}%" for t in safe_tokens], pool),
@@ -1038,7 +1171,7 @@ class KnowledgeBase:
             rows = self._conn.execute(
                 """SELECT c.id, c.doc_id, c.text, c.ord, c.embedding, d.url, d.title,
                           d.source_type, d.site, d.updated_at AS doc_updated
-                   FROM chunks c JOIN documents d ON d.id=c.doc_id
+                   FROM chunks c JOIN usable_documents d ON d.id=c.doc_id
                    WHERE c.embedding IS NOT NULL AND c.status='active' AND d.status='active'"""
             ).fetchall()
         scored: List[Tuple[float, Dict[str, Any]]] = []
@@ -1098,25 +1231,76 @@ class KnowledgeBase:
             self._conn.execute(
                 """INSERT INTO topic_queue(topic, origin, priority, created_at)
                    VALUES (?,?,?,?)
-                   ON CONFLICT(topic) DO UPDATE SET priority=MIN(priority, excluded.priority)""",
+                   ON CONFLICT(topic) DO UPDATE SET
+                       priority=MIN(priority, excluded.priority),
+                       origin=CASE WHEN last_run<>'' THEN excluded.origin ELSE origin END,
+                       last_run=''""",
                 (topic, origin, int(priority), _now()),
             )
             self._conn.commit()
 
-    def dequeue_topics(self, limit: int = 5) -> List[Dict[str, Any]]:
+    def dequeue_topics(
+        self, limit: int = 5, *, include_chat: bool = True, retry_only: bool = False,
+        now: float | None = None,
+    ) -> List[Dict[str, Any]]:
+        now = time.time() if now is None else now
         with self._lock:
             rows = self._conn.execute(
                 """SELECT * FROM topic_queue
-                   WHERE last_run='' OR last_run IS NULL
-                   ORDER BY priority ASC, hits DESC, id ASC LIMIT ?""",
-                (int(limit),),
+                   WHERE (last_run='' OR last_run IS NULL) AND (? OR origin<>'chat')
+                     AND next_retry_at<=? AND (NOT ? OR retry_count>0)
+                   ORDER BY CASE WHEN ? THEN next_retry_at ELSE 0 END, priority, hits DESC, id LIMIT ?""",
+                (include_chat, now, retry_only, retry_only, int(limit)),
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def mark_topic_run(self, topic: str) -> None:
+    def queued_topic(self, queue_id: int) -> Optional[Dict[str, Any]]:
+        with self._lock:
+            row = self._conn.execute("SELECT * FROM topic_queue WHERE id=?", (queue_id,)).fetchone()
+        return dict(row) if row else None
+
+    def next_topic_retry(self, *, include_chat: bool = True) -> Optional[float]:
+        with self._lock:
+            row = self._conn.execute(
+                """SELECT MIN(next_retry_at) FROM topic_queue
+                   WHERE (last_run='' OR last_run IS NULL) AND retry_count>0 AND (? OR origin<>'chat')""",
+                (include_chat,),
+            ).fetchone()
+        return row[0]
+
+    def defer_topic(
+        self, topic: str, *, queue_id: int | None, now: float, minimum_delay: float = 0,
+    ) -> Optional[float]:
+        """在事务里推进退避。已有队列项用 id 更新，避免复活被删除或换掉的项。"""
+        with self._lock, self._conn:
+            self._conn.execute("BEGIN IMMEDIATE")
+            if queue_id is None:
+                self._conn.execute(
+                    """INSERT INTO topic_queue(topic, origin, created_at) VALUES (?, 'retry', ?)
+                       ON CONFLICT(topic) DO NOTHING""",
+                    (topic, _now()),
+                )
+            row = self._conn.execute(
+                "SELECT id, retry_count FROM topic_queue WHERE topic=? AND (? IS NULL OR id=?)",
+                (topic, queue_id, queue_id),
+            ).fetchone()
+            if row is None:
+                return None
+            count = row["retry_count"]
+            delay = min(3600, 300 * 2 ** min(count, 4))
+            next_retry_at = now + max(delay, minimum_delay)
+            self._conn.execute(
+                "UPDATE topic_queue SET retry_count=?, next_retry_at=?, last_run='' WHERE id=?",
+                (count + 1, next_retry_at, row["id"]),
+            )
+            return next_retry_at
+
+    def mark_topic_run(self, topic: str, *, queue_id: int | None = None) -> None:
         with self._lock:
             self._conn.execute(
-                "UPDATE topic_queue SET last_run=?, hits=hits+1 WHERE topic=?", (_now(), topic)
+                """UPDATE topic_queue SET last_run=?, hits=hits+1, retry_count=0, next_retry_at=0
+                   WHERE topic=? AND (? IS NULL OR id=?)""",
+                (_now(), topic, queue_id, queue_id),
             )
             self._conn.commit()
 
@@ -1138,16 +1322,19 @@ class KnowledgeBase:
 
     def stats(self) -> Dict[str, Any]:
         with self._lock:
-            documents = self._conn.execute("SELECT COUNT(1) FROM documents WHERE status='active'").fetchone()[0]
-            chunks = self._conn.execute("SELECT COUNT(1) FROM chunks WHERE status='active'").fetchone()[0]
-            facts = self._conn.execute("SELECT COUNT(1) FROM facts WHERE status='active'").fetchone()[0]
-            conflicts = self._conn.execute("SELECT COUNT(1) FROM facts WHERE status='conflict'").fetchone()[0]
-            superseded = self._conn.execute("SELECT COUNT(1) FROM facts WHERE status='superseded'").fetchone()[0]
+            documents = self._conn.execute("SELECT COUNT(1) FROM usable_documents WHERE status='active'").fetchone()[0]
+            chunks = self._conn.execute(
+                """SELECT COUNT(1) FROM chunks c JOIN usable_documents d ON d.id=c.doc_id
+                   WHERE c.status='active' AND d.status='active'"""
+            ).fetchone()[0]
+            facts = self._conn.execute("SELECT COUNT(1) FROM usable_facts WHERE status='active'").fetchone()[0]
+            conflicts = self._conn.execute("SELECT COUNT(1) FROM usable_facts WHERE status='conflict'").fetchone()[0]
+            superseded = self._conn.execute("SELECT COUNT(1) FROM usable_facts WHERE status='superseded'").fetchone()[0]
             last_log = self._conn.execute(
                 "SELECT * FROM update_logs ORDER BY id DESC LIMIT 1"
             ).fetchone()
             by_source = self._conn.execute(
-                "SELECT source_type, COUNT(1) AS n FROM documents WHERE status='active' GROUP BY source_type"
+                "SELECT source_type, COUNT(1) AS n FROM usable_documents WHERE status='active' GROUP BY source_type"
             ).fetchall()
         return {
             "documents": documents,
