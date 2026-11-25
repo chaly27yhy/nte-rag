@@ -1,0 +1,410 @@
+{
+  "note": "真实异环资料，依据 seed/seed_kb.json 保存的公告与结构化条目初标。适用范围为快照，不代表最新线上状态。",
+  "snapshot_generated_at": "2026-09-22T22:49:06",
+  "items": [
+    {
+      "id": "nte-version-cutoff",
+      "category": "版本与日期",
+      "question": "按 2026 年 9 月 22 日这份资料快照，9 月 22 日适用的是哪个版本？已经公告的 1.4 计划何时开启？",
+      "answerable": true,
+      "time_sensitive": true,
+      "expected_points": [
+        "按现有排期，9 月 22 日仍适用 1.3「雾中朔望星回」。",
+        "1.4「祷歌为谁而诵」计划于 9 月 24 日版本更新后开启。"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260812/263538.html",
+        "https://yh.wanmei.com/news/gamebroad/20260916/264201.html"
+      ],
+      "required_evidence_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260812/263538.html",
+        "https://yh.wanmei.com/news/gamebroad/20260916/264201.html"
+      ],
+      "source_anchors": [
+        {
+          "url": "https://yh.wanmei.com/news/gamebroad/20260812/263538.html",
+          "anchors": [
+            "1.3版本",
+            "8月13日"
+          ]
+        },
+        {
+          "url": "https://yh.wanmei.com/news/gamebroad/20260916/264201.html",
+          "anchors": [
+            "祷歌为谁而诵",
+            "9月24日版本更新后"
+          ]
+        }
+      ],
+      "review": {
+        "status": "ok",
+        "comment": "维护者复核确认，9 月 24 日维护前仍为 1.3。按 9 月 22 日快照的两份公告推算可接受。1.4 的实际开启时刻仍按维护完成情况判断。"
+      }
+    },
+    {
+      "id": "nte-maintenance",
+      "category": "版本与日期",
+      "question": "《异环》1.3 更新公告是哪天发布的？当时计划几点维护，300 环石的更新维护补偿要求什么时候之前建角？",
+      "answerable": true,
+      "time_sensitive": true,
+      "expected_points": [
+        "公告在 2026 年 8 月 12 日发布。",
+        "计划维护在 2026 年 8 月 13 日 06:00–11:00。",
+        "更新维护补偿为 300 环石，要求 8 月 13 日 06:00 前已创建角色。"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260812/263538.html"
+      ],
+      "required_evidence_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260812/263538.html"
+      ],
+      "source_anchors": [
+        {
+          "url": "https://yh.wanmei.com/news/gamebroad/20260812/263538.html",
+          "anchors": [
+            "2026.08.12",
+            "06:00 - 11:00",
+            "更新维护补偿:环石*300",
+            "2026年8月13日06:00前"
+          ]
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "comment": "按公告中的计划时间和更新维护补偿条款。公告另列问题修复补偿，两个项目不宜混称。"
+      }
+    },
+    {
+      "id": "nte-heist-reopen",
+      "category": "版本与日期",
+      "question": "2026 年 7 月 23 日和 8 月 13 日两次维护中，「粉爪大劫案」分别从几点关闭？公告说什么时候重新开？",
+      "answerable": true,
+      "time_sensitive": true,
+      "expected_points": [
+        "7 月 23 日 05:30 起暂时关闭，维护完成后重新开放。",
+        "8 月 13 日 05:30 起暂时关闭，维护完成后重新开放。"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260722/263234.html",
+        "https://yh.wanmei.com/news/gamebroad/20260812/263538.html"
+      ],
+      "required_evidence_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260722/263234.html",
+        "https://yh.wanmei.com/news/gamebroad/20260812/263538.html"
+      ],
+      "source_anchors": [
+        {
+          "url": "https://yh.wanmei.com/news/gamebroad/20260722/263234.html",
+          "anchors": [
+            "7月23日05:30",
+            "维护完成后将重新开放"
+          ]
+        },
+        {
+          "url": "https://yh.wanmei.com/news/gamebroad/20260812/263538.html",
+          "anchors": [
+            "8月13日5:30",
+            "更新维护完成后将重新开放"
+          ]
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "comment": "公告写的是维护完成后恢复，并提到维护时间可能调整。计划上限不等同于实际复开时刻。"
+      }
+    },
+    {
+      "id": "nte-jinse-discount",
+      "category": "版本与日期",
+      "question": "残虹时装「堇色流火」在 2026 年 8 月 21 日是否处于首发折扣期？按公告 9 月 24 日 06:00 还能用首发折扣价吗？公告标的原价是多少？",
+      "answerable": true,
+      "time_sensitive": true,
+      "expected_points": [
+        "8 月 21 日在首发折扣期间，折扣价为 2680 异晶。",
+        "折扣截至 9 月 24 日 05:59，06:00 已超过原公告的折扣期。",
+        "公告标出的原价为 3280 异晶。"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260812/263538.html"
+      ],
+      "required_evidence_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260812/263538.html"
+      ],
+      "source_anchors": [
+        {
+          "url": "https://yh.wanmei.com/news/gamebroad/20260812/263538.html",
+          "anchors": [
+            "堇色流火",
+            "9月24日05:59",
+            "2680异晶",
+            "3280异晶"
+          ]
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "comment": "原价和折扣价分别依据公告。9 月 24 日只判断已超过原折扣截止时间，不把公告推成后续实际商城价格。"
+      }
+    },
+    {
+      "id": "nte-weaver-discount",
+      "category": "版本与日期",
+      "question": "伊洛伊时装「织梦者」在 2026 年 8 月 12 日按公告是什么价格？8 月 13 日 06:00 还能用原公告的折扣吗？",
+      "answerable": true,
+      "time_sensitive": true,
+      "expected_points": [
+        "8 月 12 日在折扣期内，折扣价为 2680 异晶。",
+        "原公告折扣到 8 月 13 日 05:59，06:00 已超出折扣期。"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260722/263234.html"
+      ],
+      "required_evidence_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260722/263234.html"
+      ],
+      "source_anchors": [
+        {
+          "url": "https://yh.wanmei.com/news/gamebroad/20260722/263234.html",
+          "anchors": [
+            "织梦者",
+            "8月13日05:59",
+            "折扣价格:2680异晶"
+          ]
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "comment": "核对对象是「织梦者」，同一个公告的「夏日梦」有不同价格。"
+      }
+    },
+    {
+      "id": "nte-return-threshold",
+      "category": "活动条件",
+      "question": "「伊波恩合伙人行动」里，角色连续离线恰好 14 天、猎人等级恰好 10 级，且已完成指定剧情，能被判断为回归鉴定师吗？",
+      "answerable": true,
+      "expected_points": [
+        "恰好连续离线 14 天达到离线要求。",
+        "猎人等级恰好 10 级未达到大于 10 级的要求，因此按这组条件不能被判断为回归鉴定师。"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gameevent/20260706/263032.html"
+      ],
+      "required_evidence_sources": [
+        "https://yh.wanmei.com/news/gameevent/20260706/263032.html"
+      ],
+      "source_anchors": [
+        {
+          "url": "https://yh.wanmei.com/news/gameevent/20260706/263032.html",
+          "anchors": [
+            "连续离线天数 ≥14天",
+            "猎人等级大于10级",
+            "生意经与招财宝"
+          ]
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "comment": "两个阈值一处含等号，一处严格大于。"
+      }
+    },
+    {
+      "id": "nte-return-expiry",
+      "category": "版本与日期",
+      "question": "按原公告，「伊波恩合伙人行动」在 2026 年 8 月 13 日 06:00（UTC+8）还能领取奖励吗？公告给的截止点是哪一秒？",
+      "answerable": true,
+      "time_sensitive": true,
+      "expected_points": [
+        "原公告的截止点是 2026 年 8 月 13 日 05:59:59（UTC+8）。",
+        "06:00 已过截止，公告明确活动结束后不可领取奖励。"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gameevent/20260706/263032.html"
+      ],
+      "required_evidence_sources": [
+        "https://yh.wanmei.com/news/gameevent/20260706/263032.html"
+      ],
+      "source_anchors": [
+        {
+          "url": "https://yh.wanmei.com/news/gameevent/20260706/263032.html",
+          "anchors": [
+            "05:59:59(utc+8)",
+            "活动结束后不可领取奖励"
+          ]
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "comment": "截止时间含秒和时区，即使只差一秒也已经超过。"
+      }
+    },
+    {
+      "id": "nte-orbit-save",
+      "category": "证据缺口",
+      "question": "9 月 4 日更新给「轨外回响」新增了哪两种退出方式？一个账号最多能保留几个活动存档？",
+      "answerable": true,
+      "expected_points": [
+        "新增存档退出和结算退出。",
+        "可以保存当前进度后退出，或立即结算本局。"
+      ],
+      "expected_unknowns": [
+        "现有证据未给出账号最多能保留几个存档。"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260904/263926.html"
+      ],
+      "required_evidence_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260904/263926.html"
+      ],
+      "source_anchors": [
+        {
+          "url": "https://yh.wanmei.com/news/gamebroad/20260904/263926.html",
+          "anchors": [
+            "存档退出和结算退出",
+            "保存当前进度退出或立即结算"
+          ]
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "comment": "公告证明两种退出选项。手头快照未提供账号级存档数量。"
+      }
+    },
+    {
+      "id": "nte-auction-price",
+      "category": "证据缺口",
+      "question": "8 月 20 日「即刻落槌」改了哪两种仪器组的售价？这份公告能给出它们调整前后的准确价格吗？",
+      "answerable": true,
+      "expected_points": [
+        "被调整的是进阶泛用仪器组和至尊仪器组。"
+      ],
+      "expected_unknowns": [
+        "当前公告证据无法确认这两种仪器组调整前后的具体金额。"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260819/263646.html"
+      ],
+      "required_evidence_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260819/263646.html"
+      ],
+      "source_anchors": [
+        {
+          "url": "https://yh.wanmei.com/news/gamebroad/20260819/263646.html",
+          "anchors": [
+            "进阶泛用仪器组和至尊仪器组",
+            "售价和仪器内容"
+          ]
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "comment": "公告只写了有调整，未在快照中列出调整前后的售价。"
+      }
+    },
+    {
+      "id": "nte-mint-birthday",
+      "category": "来源分歧",
+      "question": "薄荷的生日在这份资料快照里是哪天？看到一份旧攻略标成 8 月 20 日，能用现有资料支持这个说法吗？",
+      "answerable": true,
+      "expected_points": [
+        "玩一玩的资料给出薄荷生日为 6 月 1 日。",
+        "8 月 20 日不能作为现有证据确认的生日。"
+      ],
+      "expected_sources": [
+        "https://m.wywyx.com/wiki/578643.html"
+      ],
+      "required_evidence_sources": [
+        "https://m.wywyx.com/wiki/578643.html"
+      ],
+      "excluded_sources": [
+        {
+          "url": "https://wiki.biligame.com/yh/%E8%96%84%E8%8D%B7",
+          "label": "BWIKI 的薄荷角色页"
+        }
+      ],
+      "source_anchors": [
+        {
+          "url": "https://m.wywyx.com/wiki/578643.html",
+          "anchors": [
+            "薄荷·生日",
+            "6月1日"
+          ]
+        }
+      ],
+      "review": {
+        "status": "fixed",
+        "comment": "维护者确认保留玩一玩快照的 6 月 1 日，撤回的 BWIKI 旧页不得用于佐证。删去对旧攻略如何误记的推测。"
+      }
+    },
+    {
+      "id": "nte-jiuyuan-hp",
+      "category": "来源分歧",
+      "question": "玩一玩快照把九原的初始生命记为多少？旧 BWIKI 页面曾写「生命 5846」，能用这条旧记录确认九原的真实初始生命吗？",
+      "answerable": true,
+      "expected_points": [
+        "玩一玩把 1290 列为九原的初始生命。",
+        "BWIKI 曾写的 5846 只作历史误例，不能作为确认真实初始生命的依据。"
+      ],
+      "expected_unknowns": [
+        "仅凭题中的旧网页，无法确认 BWIKI 的 5846 对应的角色等级和配装条件。"
+      ],
+      "expected_sources": [
+        "https://m.wywyx.com/wiki/578618.html"
+      ],
+      "required_evidence_sources": [
+        "https://m.wywyx.com/wiki/578618.html"
+      ],
+      "excluded_sources": [
+        {
+          "url": "https://wiki.biligame.com/yh/%E4%B9%9D%E5%8E%9F",
+          "label": "BWIKI 九原页的生命字段（维护者复核后不采信该数值）"
+        }
+      ],
+      "source_anchors": [
+        {
+          "url": "https://m.wywyx.com/wiki/578618.html",
+          "anchors": [
+            "九原·初始生命",
+            "1290"
+          ]
+        }
+      ],
+      "review": {
+        "status": "fixed",
+        "comment": "维护者确认实拍来自1.5版本。九原 1 级面板显示生命 1290、攻击 82、防御 75，与玩一玩快照一致。实拍转录见 docs/consistency_review.md。此题仍考查历史快照，5846 留作历史误例。角色等级相同不足以证明弧盘、空幕及技能等级等条件一致。"
+      }
+    },
+    {
+      "id": "nte-blindbox-cost",
+      "category": "证据缺口",
+      "question": "1.3 版本的「逐光破浪」盲盒最多抽几次，抽取消耗是不是固定的？每一抽具体要花多少？",
+      "answerable": true,
+      "expected_points": [
+        "最多抽取 15 次。",
+        "可以使用方斯或环石，消耗随次数递增。"
+      ],
+      "expected_unknowns": [
+        "现有证据未给出每一次抽取的具体花费。"
+      ],
+      "expected_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260812/263538.html"
+      ],
+      "required_evidence_sources": [
+        "https://yh.wanmei.com/news/gamebroad/20260812/263538.html"
+      ],
+      "source_anchors": [
+        {
+          "url": "https://yh.wanmei.com/news/gamebroad/20260812/263538.html",
+          "anchors": [
+            "逐光破浪",
+            "最多可抽取15次",
+            "随次数逐步递增"
+          ]
+        }
+      ],
+      "review": {
+        "status": "pending",
+        "comment": "公告给出抽数与递增规则，所读快照未列逐次价格表。"
+      }
+    }
+  ]
+}

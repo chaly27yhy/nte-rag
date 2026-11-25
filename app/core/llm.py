@@ -49,12 +49,13 @@ GEMINI_ACTIONS = ("generateContent", "streamGenerateContent", "embedContent", "c
 class LLMError(RuntimeError):
     """模型调用失败，message 已脱敏，可直接展示给用户。"""
 
-    def __init__(self, message: str, retry_after: float = 0.0, status: int = 0) -> None:
+    def __init__(self, message: str, retry_after: float = 0.0, status: int = 0, *, retryable: bool = False) -> None:
         super().__init__(message)
         # 服务端用 Retry-After 给出需要等待的时长（429/503 常见）：
         # 过去直接忽略，按 1.5s 线性退避硬撞，等于自己把限流撞得更死。
         self.retry_after = float(retry_after or 0.0)
         self.status = int(status or 0)
+        self.retryable = retryable or self.status in RETRYABLE_STATUSES
 
 
 @dataclass
@@ -372,6 +373,7 @@ class LLMClient:
             secrets.scrub(str(last_error or "模型调用失败")),
             retry_after=getattr(last_error, "retry_after", 0.0),
             status=getattr(last_error, "status", 0),
+            retryable=isinstance(last_error, RETRYABLE_TRANSPORT_ERRORS),
         )
 
     def stream(

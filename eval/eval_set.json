@@ -72,10 +72,10 @@
       "id": "q004"
     },
     {
-      "question": "《异环》1.3版本叫什么名字？什么时候上线？",
+      "question": "《异环》国服 1.3 版本叫什么名字？什么时候上线？",
       "expected_points": [
         "版本名为「雾中朔望星回」",
-        "将于8月13日版本更新后开启"
+        "国服于2026年8月13日版本维护结束后开启"
       ],
       "expected_sources": [
         "https://yh.wanmei.com/news/gamenews/20260808/263494.html"
@@ -84,8 +84,8 @@
       "difficulty": "easy",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": ""
+        "status": "fixed",
+        "comment": "明确国服范围。版本更新公告确认8月13日维护完成后开启；旧 Wiki 横幅中的9月日期只覆盖当时运营阶段。"
       },
       "id": "q005"
     },
@@ -825,14 +825,15 @@
         "古董店「伊波恩」的一员"
       ],
       "expected_sources": [
-        "https://yh.wanmei.com/news/gamebroad/20260916/264201.html"
+        "https://yh.wanmei.com/news/gamebroad/20260916/264201.html",
+        "https://yh.wanmei.com/news/gamenews/20260808/263494.html"
       ],
       "category": "剧情",
       "difficulty": "medium",
       "answerable": true,
       "review": {
-        "status": "ok",
-        "comment": ""
+        "status": "fixed",
+        "comment": "两篇官方前瞻的游戏介绍原文均直接支持故事起点和玩家身份，任一篇均可作为引用。"
       },
       "id": "q047"
     },

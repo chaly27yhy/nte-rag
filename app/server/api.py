@@ -19,6 +19,7 @@ import logging
 import math
 import os
 import secrets as pysecrets
+import threading
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -81,6 +82,8 @@ class AppContext:
         self.token = pysecrets.token_urlsafe(24)
         self.started_at = time.time()
         self._seed_checked = False
+        self._seed_lock = threading.Lock()
+        self._seed_status: Dict[str, Any] = {"status": "pending"}
 
     def ensure_curation(self) -> None:
         """把「已证伪来源的撤回」补做到已有库上（幂等，名单见 app/core/curation.py）。
@@ -96,32 +99,44 @@ class AppContext:
         if report.get("applied"):
             self.kb.set_meta("curation_report", json.dumps(report, ensure_ascii=False))
 
-    def ensure_seed(self) -> None:
+    def ensure_seed(self, *, retry: bool = False) -> Dict[str, Any]:
         """导入随程序分发的种子知识库。
 
         不只是「首次运行」：每次启动都比对种子文件指纹，换了新种子就重新导入。
         否则用户升级 exe 后，新版种子里的资料（例如后来补进来的表格数值条目）
         永远进不了他的知识库——旧实现只看 `seed_loaded=1`，升级等于白升。
         """
-        if self._seed_checked:
-            return
-        self._seed_checked = True
-        # 先撤回再导入：反过来的话，种子里的已证伪页面会先被写进去再撤回，
-        # 白白多一次写入。
-        self.ensure_curation()
+        if not self._seed_lock.acquire(blocking=False):
+            return {"status": "running"}
         try:
-            seed_path = paths.seed_kb_path()
-            fingerprint = seed_fingerprint(seed_path)
-            if fingerprint and self.kb.get_meta("seed_fingerprint", "") == fingerprint:
-                return
-            report = load_seed(self.kb, self.config, seed_path)
-            if not report.get("skipped"):
-                self.kb.set_meta(
-                    "seed_report",
-                    json.dumps(report, ensure_ascii=False),
-                )
-        except Exception:
-            pass
+            if self._seed_checked and not (retry and self._seed_status["status"] == "failed"):
+                return dict(self._seed_status)
+            self._seed_checked = True
+            self._seed_status = {"status": "running"}
+            try:
+                self.ensure_curation()
+                seed_path = paths.seed_kb_path()
+                if not seed_path.is_file():
+                    self._seed_status = {"status": "unavailable"}
+                else:
+                    fingerprint = seed_fingerprint(seed_path)
+                    if fingerprint and self.kb.get_meta("seed_fingerprint", "") == fingerprint:
+                        self._seed_status = {"status": "ready"}
+                    else:
+                        report = load_seed(self.kb, self.config, seed_path)
+                        if report.get("skipped"):
+                            raise ValueError("无法读取内置资料文件")
+                        self.kb.set_meta("seed_report", json.dumps(report, ensure_ascii=False))
+                        if report.get("failed"):
+                            self._seed_status = {"status": "failed", "failed": report["failed"]}
+                        else:
+                            self._seed_status = {"status": "ready"}
+            except Exception as error:
+                _LOGGER.warning("内置资料导入失败：%s", secrets.scrub(str(error)))
+                self._seed_status = {"status": "failed"}
+            return dict(self._seed_status)
+        finally:
+            self._seed_lock.release()
 
     def state(self) -> Dict[str, Any]:
         stats = self.kb.stats()
@@ -133,6 +148,7 @@ class AppContext:
             "update": self.updater.status(),
             "stats": stats,
             "paths": paths.describe_layout(),
+            "seed_import": dict(self._seed_status),
         }
 
 
@@ -409,6 +425,11 @@ def create_app(context: Optional[AppContext] = None) -> FastAPI:
         ctx.ensure_seed()
         return ctx.state()
 
+    @app.post("/api/kb/seed/retry")
+    def retry_seed(request: Request) -> Dict[str, Any]:
+        _check(request)
+        return ctx.ensure_seed(retry=True)
+
     # ------------------------------------------------------------------
     # 设置
     # ------------------------------------------------------------------
@@ -478,36 +499,45 @@ def create_app(context: Optional[AppContext] = None) -> FastAPI:
     # 问答
     # ------------------------------------------------------------------
 
+    def chat_web_policy(body: ChatRequest) -> tuple[bool, bool]:
+        default = bool(ctx.config.get("answer", "auto_web", True))
+        allow_web = default if body.allow_web is None else body.allow_web
+        # 临时打开只授权本次补查。后台补查沿用已保存的联网偏好。
+        return allow_web, allow_web and default
+
     @app.post("/api/chat")
     def chat(request: Request, body: ChatRequest) -> Dict[str, Any]:
         _check(request)
+        allow_web, remember_gap = chat_web_policy(body)
         try:
             result = ctx.rag.answer(
                 body.question,
                 history=body.history,
-                allow_web=body.allow_web,
+                allow_web=allow_web,
                 top_k=body.top_k,
             )
         except LLMError as error:
             raise HTTPException(status_code=400, detail=secrets.scrub(str(error))) from error
         except Exception as error:  # noqa: BLE001
             raise HTTPException(status_code=500, detail=secrets.scrub(str(error))) from error
-        _remember_gap(ctx, body.question, result.retrieval)
+        if remember_gap:
+            _remember_gap(ctx, body.question, result.retrieval)
         return result.to_dict()
 
     @app.post("/api/chat/stream")
     def chat_stream(request: Request, body: ChatRequest) -> StreamingResponse:
         _check(request)
+        allow_web, remember_gap = chat_web_policy(body)
 
         def generate():
             try:
                 for event in ctx.rag.stream_answer(
                     body.question,
                     history=body.history,
-                    allow_web=body.allow_web,
+                    allow_web=allow_web,
                     top_k=body.top_k,
                 ):
-                    if event.get("type") == "done":
+                    if remember_gap and event.get("type") == "done":
                         _remember_gap(ctx, body.question, event.get("retrieval") or {})
                     yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
             except Exception as error:  # noqa: BLE001
@@ -1007,11 +1037,12 @@ def _scrub_any(value: Any) -> Any:
 def _remember_gap(ctx: AppContext, question: str, retrieval: Dict[str, Any]) -> None:
     """把「本地答不上来」的问题自动排进主题队列，供后续自动更新补齐。"""
     try:
-        if not retrieval:
+        if not retrieval or not ctx.config.get("answer", "auto_web", True):
             return
         best = float(retrieval.get("best_score") or 0)
-        if best < 0.2 and len(question.strip()) >= 4:
-            ctx.kb.enqueue_topic(question.strip()[:60], origin="chat", priority=3)
+        gap = str(retrieval.get("gap_query") or "").strip()
+        if gap or (best < 0.2 and len(question.strip()) >= 4):
+            ctx.kb.enqueue_topic((gap or question.strip())[:60], origin="chat", priority=3)
     except Exception:
         pass
 

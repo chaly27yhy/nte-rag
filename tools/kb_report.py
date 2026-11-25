@@ -2,7 +2,7 @@
 
 用法：
     .venv\\Scripts\\python.exe tools\\kb_report.py
-    .venv\\Scripts\\python.exe tools\\kb_report.py --seed seed\\seed_kb.json --json eval\\kb_report.json
+    .venv\\Scripts\\python.exe tools\\kb_report.py --seed seed\\seed_kb.json --json eval\\report-kb-current.json
 
 检查项：
   1. 规模与来源结构（高等级来源占比）
@@ -66,7 +66,7 @@ def main():
     facts = data.get("facts") or []
     chunks = data.get("chunks") or [c for d in docs for c in (d.get("chunks") or [])]
     print(f"种子文件：{args.seed}")
-    print(f"生成时间：{data.get('generated_at') or data.get('generated') or '(未记录)'}")
+    print(f"基础快照生成时间：{data.get('generated_at') or data.get('generated') or '(未记录)'}")
     print(f"规模：{len(docs)} 篇文档 / {len(chunks)} 段切片 / {len(facts)} 条条目"
           f"（{Path(args.seed).stat().st_size / 1024:.1f} KB）")
 
@@ -131,14 +131,19 @@ def main():
     # 4 冲突候选（标题作用域）
     section("【4】冲突候选：同一标题下同单位数值不一致（低噪声口径）")
     conflicts = []
-    for key, group in by_title.items():
-        values = defaultdict(set)
+    for group in by_title.values():
+        if len(group) < 2:
+            continue
+        signatures = defaultdict(set)
         for f in group:
+            values = defaultdict(set)
             for value, unit in NUM_UNIT.findall(str(f.get("answer") or "")):
                 values[unit].add(value)
-        for unit, vals in values.items():
-            if len(vals) > 1:
-                conflicts.append((group[0].get("title"), unit, sorted(vals), group))
+            for unit, numbers in values.items():
+                signatures[unit].add(frozenset(numbers))
+        for unit, sets in signatures.items():
+            if len(sets) > 1:
+                conflicts.append((group[0].get("title"), unit, sorted(set().union(*sets)), group))
     if not conflicts:
         print("  未发现同标题数值冲突")
     for title, unit, vals, group in conflicts[:20]:
@@ -162,7 +167,7 @@ def main():
         print(f"  条目长度：中位 {statistics.median(lens):.0f}，均值 {statistics.mean(lens):.0f}，"
               f"最短 {min(lens)}，最长 {max(lens)}")
         print(f"  短于 40 字：{sum(1 for x in lens if x < 40)} 条")
-    clens = [len(str(c.get("text") or "")) for c in chunks]
+    clens = [len(c if isinstance(c, str) else str(c.get("text") or "")) for c in chunks]
     if clens:
         print(f"  切片长度：中位 {statistics.median(clens):.0f}，均值 {statistics.mean(clens):.0f}，最长 {max(clens)}")
 

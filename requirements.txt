@@ -11,7 +11,10 @@ pydantic>=2.9
 starlette>=0.40
 uvicorn>=0.54.0
 httpx>=0.27
+# HTTPS 根证书与 HTML 选择器的已修复版本下限。
+certifi>=2026.10.18
 beautifulsoup4>=4.12
+soupsieve>=4.0
 lxml>=5.3
 trafilatura>=1.12
 ddgs>=9.0

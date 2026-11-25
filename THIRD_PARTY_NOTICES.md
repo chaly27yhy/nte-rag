@@ -15,26 +15,31 @@
 
 ## 1. 内置种子库 `seed/seed_kb.json`
 
-这是随程序分发的离线知识库（70 篇文档 / 152 段原文摘录 / 685 条结构化事实，
-快照时间 `2026-09-22T22:49:06`），内容摘录自下列站点。
+内置资料包括 2026 年 9 月基础快照、后续复核条目和国服 1.5 公告摘要。仓库档案、Windows 发行包的资料范围与数量见 [DATA_LICENSE.md](DATA_LICENSE.md)。
+
+国服公测平台引用完美世界股份有限公司在巨潮资讯网披露的 [2025 年年度报告摘要](https://static.cninfo.com.cn/finalpage/2026-04-28/1225207317.PDF)。
 种子库中的每条事实都带有 `source_url`，可逐条回溯到原文。
 
 | 站点 | 域名 | 收录内容 | 本项目标注的来源类型 |
 |---|---|---|---|
-| 《异环》官方网站 | `yh.wanmei.com` | 世界观与角色设定（叙事文本）、新闻与游戏公告 | `official`（官方） |
-| BWIKI（bilibili 游戏 wiki） | `wiki.biligame.com/yh` | 弧盘 / 角色 / 卡带 / 道具图鉴与 MediaWiki 模板字段 | `wiki` |
+| 《异环》官方网站 | `yh.wanmei.com` | 世界观、角色设定、新闻公告与实拍记录的查证入口 | `official`、`manual` |
+| BWIKI（bilibili 游戏 wiki） | `wiki.biligame.com/yh` | 历史图鉴与 MediaWiki 模板字段，留在仓库审计档案 | `wiki` |
 | 萌娘百科 | `zh.moegirl.org.cn` | 《异环》条目与名词词典 | `wiki` |
-| 玩一玩游戏网 | `m.wywyx.com` | 角色图鉴（作为 BWIKI 之外的**第二来源**，用于跨源一致性比对） | `wiki` |
+| 玩一玩游戏网 | `m.wywyx.com` | 角色图鉴与客户端面板的交叉核对 | `wiki`、`manual` |
 | 游民星空 | `www.gamersky.com` | 攻略手册 | `community`（社区） |
 | 3DM | `shouyou.3dmgame.com` | 攻略合集 | `community` |
+| 异环信息站 | `www.ntestation.com` | 角色与弧盘字段 | `wiki`、`manual` |
+| 环世全鉴 | `wiki.mysqil.com` | 角色与弧盘资料 | `wiki`、`manual` |
+| 海天配音工作室 | `www.bilibili.com` | 工作室发布的参配名单 | `community` |
+| 游侠网 | `m.ali213.net` | 弧盘图鉴 | `community` |
+| GameWith | `gamewith.net`、`gamewith.ai` | 弧盘与道具资料 | `wiki`、`manual` |
+| TapTap | `www.taptap.cn` | 弧盘资料 | `community` |
 | 17173 | `news.17173.com` | 单条**人工录入**事实的来源页（经 `tools/manual_facts.py` 录入，非自动抓取） | `manual`（人工录入） |
 | kamigame（日文攻略站） | `kamigame.jp` | 单条**人工录入**事实的来源页（作为对照来源，非自动抓取） | `manual`（人工录入） |
 
 补充几点：
 
-- **游侠网（`ali213.net`，含 `gl.ali213.net`）** 只用于**人工抽查**，不作为自动来源；
-  `薄荷` 生日一案的第三来源证据出自 `gl.ali213.net` 的角色介绍页，
-  记录在 `docs/consistency_review.md`。
+- **游侠网攻略站（`gl.ali213.net`）** 用于人工核对角色字段，相关结论见 `docs/consistency_review.md` 与 `docs/data_sources_cn.md`。
 - **新浪（`sina.cn`）** 只作为官方微博内容的**镜像记录**出现在
   `docs/data_sources_cn.md` 的来源梳理里，不是种子库的自动来源。
 - 官方域名有两种写法都对：国服官网 `yh.wanmei.com`（`app/core/sources.py` 里的自动来源），

@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 from typing import Any, Dict
 from urllib.parse import unquote, urlsplit, urlunsplit
 
@@ -29,6 +30,27 @@ REVOKED_PAGES: Dict[str, str] = {
         "生日与 CV 与本站「娜娜莉」页相同（2026-09-22 脏数据审计），整页不采信"
     ),
 }
+
+PAUSED_BWIKI_REASON = "施工中，复核发现数据错误，暂不采信"
+_BWIKI_MERGE_TAG = re.compile(r"并入:\s*wiki\.biligame\.com(?=[\s|,，;；]|$)", re.IGNORECASE)
+
+
+def paused_reason(url: str) -> str:
+    """暂时停用 BWIKI 异环专区。其他专区与历史撤回名单各自独立。"""
+    try:
+        parts = urlsplit(str(url or "").strip())
+        path = unquote(parts.path).rstrip("/")
+        host = (parts.hostname or "").rstrip(".")
+        if host == "wiki.biligame.com" and (path == "/yh" or path.startswith("/yh/")):
+            return PAUSED_BWIKI_REASON
+    except ValueError:
+        pass
+    return ""
+
+
+def source_paused(url: str, tags: str = "") -> bool:
+    """旧行的合并文本无法按来源拆分，也先排除，等待回查独立原文。"""
+    return bool(paused_reason(url) or _BWIKI_MERGE_TAG.search(str(tags or "")))
 
 # 撤回后写入元数据表的键名：名字改了要一起改这里
 FINGERPRINT_META_KEY = "curation_fingerprint"
@@ -55,6 +77,52 @@ def canonical_url(url: str) -> str:
 
 
 _REVOKED_CANON: Dict[str, str] = {canonical_url(key): value for key, value in REVOKED_PAGES.items()}
+
+_MOEGIRL_GAME_URL = "https://zh.moegirl.org.cn/异环"
+_MOEGIRL_BANNER_PAGES = {_MOEGIRL_GAME_URL, f"{_MOEGIRL_GAME_URL}/名词词典"}
+_MOEGIRL_13_BANNER = (
+    "1.3版本「雾中朔望星回」现正运营中!"
+    "(简中服)2026年9月3日维护结束后~2026年9月24日05:59(utc+8)\n"
+    "(国际及港澳台服)2026年9月9日维护结束后~2026年9月30日05:59(utc+8)"
+)
+
+
+_REVOKED_FACTS = {
+    (_MOEGIRL_GAME_URL, "异环1.3版本运营时间"),
+    ("https://www.gamersky.com/handbook/202412/1853017.shtml", "《异环》支持平台"),
+    ("https://www.gamersky.com/handbook/202604/2129310.shtml", "异环游戏平台"),
+    ("https://www.gamersky.com/handbook/202604/2129549.shtml", "《异环》支持的游戏平台"),
+    ("https://www.gamersky.com/handbook/202604/2129607.shtml", "异环支持平台与游戏类型"),
+}
+
+
+def revoked_fact(url: str, title: str) -> bool:
+    """排除从阶段横幅或重复站点页脚误取的旧事实。"""
+    return (canonical_url(url), title) in _REVOKED_FACTS
+
+
+_GAMERSKY_FOOTER = re.compile(
+    r"\n(?:更多相关内容请关注[:：]异环专区\s*\n)?"
+    r"本文是否解决了您的问题\s*\n游戏平台[:：]pc/ps5/android/ios\b",
+    re.IGNORECASE,
+)
+
+
+def strip_gamersky_footer(url: str, text: str) -> str:
+    """保留攻略正文，删去含旧平台清单与广告的已确认页脚。"""
+    if not text or "本文是否解决了您的问题" not in text:
+        return text
+    if urlsplit(canonical_url(url)).hostname != "www.gamersky.com":
+        return text
+    footer = _GAMERSKY_FOOTER.search(text)
+    return text[:footer.start()].rstrip() if footer else text
+
+
+def strip_retired_banner(url: str, text: str) -> str:
+    """组织问答证据时省略已复核的旧横幅与页脚。"""
+    if "现正运营中!" in text and canonical_url(url) in _MOEGIRL_BANNER_PAGES:
+        return text.replace(_MOEGIRL_13_BANNER, "\n", 1)
+    return strip_gamersky_footer(url, text)
 
 
 def revoked_reason(url: str) -> str:

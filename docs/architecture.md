@@ -74,7 +74,7 @@ run.py                             ← 打包入口（先建立包上下文，�
        │                             中文 bigram + SQLite FTS5；bm25 越负越相关
        │                             事实路径按 coverage*0.75 + confidence*0.25 排序
        ├─ 本地够用 ──► build_evidence() ──► answer() / stream_answer() ──► 带引用作答
-       └─ best_score < web_trigger_score(默认 0.35)
+       └─ 允许本次补查，且 best_score < web_trigger_score(默认 0.35)
             └─ RagEngine.web_fill()   search.py 搜索 → fetch.py 抓取 → store_page() 入库
                  └─ build_evidence() 用「本地 + 新抓」的证据一起作答
 ```
@@ -85,6 +85,8 @@ run.py                             ← 打包入口（先建立包上下文，�
 - `_citation(item)` 为每条引用补上 URL、来源类型（official/wiki/community/narrative）
   与更新时间；`_offline_answer()` 是未配置模型时的「本地证据直通」模式。
 - 每个结论都带来源编号。这是项目的核心承诺，任何优化都不该削弱它。
+- 聊天页按已保存的 `answer.auto_web` 初始化。单次选择在发送后恢复默认值。
+  本次与默认均允许补查时，低分提问才进入后续更新队列。默认关闭时暂停处理已排队的聊天缺口。
 
 ### 3.2 入库链路（`app/core/ingest.py`）
 
@@ -108,9 +110,7 @@ ingest_sources()
 
 1. **不渲染 JavaScript**：只吃 SSR 页面与公开 JSON API（官方衍生作品指引禁止搬运美术资源，
    仓库因此不含任何位图素材，界面全部代码绘制）。
-2. **结构化字段优先于表格**：BWIKI 条目模板里的数值在渲染页面上根本不出现，
-   所以走 `app/core/wiki_api.py` 的 `action=query&prop=revisions` 批量接口
-   （一次 20 个标题），既是精度需要也是绕 WAF 的需要。
+2. **结构化字段优先于表格**。来自启用来源的字段按行入库。BWIKI 异环专区已暂停，相关接口与模板记录见[历史调研](data_sources_cn.md#2026-年-9-月的历史调研)。
 3. **改数据不等于改结论**：新资料与旧结论冲突时不覆盖，并存 + 标注生效时间。
 
 ### 3.3 更新链路（`app/core/autoupdate.py` + `ingest.update_topic()`）
@@ -138,6 +138,11 @@ ingest_sources()
   命中页面对应的 documents/chunks/facts 会被置为 `revoked`（`KnowledgeBase.revoke_source()`，
   软撤回，记录留在库里供复核），检索层只读 `active`/`conflict`，所以老版本留下的内容
   在升级后同样会从答案里消失（`app/core/curation.py`、`AppContext.ensure_curation()`）。
+- **抽取进度跟随正文**。正文和切片一起提交。页面元数据分开记录表格和模型抽取的成功版本，
+  正文没变时保留记录。正文变化后重新抽取，规则版本升级或抽取失败时在下次抓到该页补做对应阶段。
+  刷新同一 URL 时，旧正文派生的条目与新切片一起切换，旧条目归入「已被取代」。手写条目和独立采集的
+  API 模板字段沿用各自的依据。截断的响应不替换已保存的正文。
+  旧版页面的抽取版本字段是在抽取前写入的，因此旧库中的页面会在首次重抓时补做抽取。
 - 每个请求都有**整体时限**（不是分阶段超时）：慢速滴流的响应体读到预算耗尽即放弃；
   模型调用按 `Retry-After` 退避、带抖动、只重试可重试的传输错误与状态码。
 - 更新报告的六个计数各有含义：**取到正文**＝该轮取回正文的页数（含随后被清洗层丢弃的），
@@ -177,8 +182,7 @@ trust = 0.45 × 来源等级      official 1.0 / manual 0.95 / wiki 0.75 / seed 
 - **不跨定义比对**：`生命/攻击` 这类字段一旦冲突即标存疑、退出投票池，
   不再参与比对（施工期数据不可比，全局给 BWIKI 降权会误伤已经稳定的字段）。
 - 纯叙事文本（官方「角色介绍」）单独成类**叙事/世界观来源**，不参与任何字段投票。
-- 当前种子库：多源一致 14（全部为生日）、冲突 0；投票面 74 槽。
-  唯一一处分歧（薄荷·生日）已人工裁定，判例见 [consistency_review.md](consistency_review.md)。
+- 审计档案的字段统计和薄荷生日等裁决依据见 [consistency_review.md](consistency_review.md)。
 
 ### 4.3 时效与版本（`app/core/versioning.py`）
 
@@ -187,10 +191,14 @@ trust = 0.45 × 来源等级      official 1.0 / manual 0.95 / wiki 0.75 / seed 
 - 区分**生效日**（`生效于 2026-08-13`）与**发布日**（`发布于 2026-08-08`）；
   两者混为一谈会输出假信息。
 - 同一 `(实体, 字段)` 多行时，生效时间/版本更新的排在证据前面，旧版本仍留在证据里。
+- 回答按问题指定的日期和版本选择适用规则。现行值和未来变更分别给出，每项数值跟随其生效时间，
+  便于核对当时适用的规则。
+- 问答期对题目里的单一完整日期和原文明写的起始日做日历比较。只有发布日期、多日期或起始日不明时留给原文判断。
+  标注相等时仍需核对具体时刻或维护完成条件，晚于起始日也只表示日期先后，是否仍适用依原文。
 
 ---
 
-## 5. 数据存储（`app/core/store.py`，SQLite，`SCHEMA_VERSION = 3`）
+## 5. 数据存储（`app/core/store.py`，SQLite，`SCHEMA_VERSION = 4`）
 
 | 表 | 作用 |
 |---|---|
@@ -199,7 +207,7 @@ trust = 0.45 × 来源等级      official 1.0 / manual 0.95 / wiki 0.75 / seed 
 | `chunks` | 分块正文 + SimHash ± 可选向量；`chunks_fts` 是 FTS5 索引 |
 | `facts` | 原子知识条目：主题/标签/可信度/extraction/version/effective_from/date_kind/sim_bucket；`facts_fts` 是 FTS5 索引 |
 | `update_logs` | 每轮更新的计数与结果（界面「更新报告」的数据源） |
-| `topic_queue` | 待更新主题队列（自动/手动） |
+| `topic_queue` | 待更新主题队列，含连续重试次数及下次可执行时间 |
 
 索引：`idx_documents_source`、`idx_documents_updated`、`idx_chunks_doc`、
 `idx_facts_topic`、`idx_facts_status`、`idx_facts_title`、`idx_facts_bucket`。
@@ -207,10 +215,19 @@ trust = 0.45 × 来源等级      official 1.0 / manual 0.95 / wiki 0.75 / seed 
 - 老库自动补列（`_migrate()`）+ 回填 `sim_bucket`；`ALTER TABLE` 之前不能建依赖新列的索引。
 - `status` 有四种：`active`、`conflict`、`superseded`、`revoked`。检索只读前两种，
   所以撤回名单把已证伪页面标成 `revoked` 就能让它同时退出切片与条目检索，记录仍留在库里可复核。
+- 暂停来源通过 SQLite 连接上的临时视图退出活动查询。对老库，暂停会保留原表中的记录和原有状态。
+  BWIKI 暂停以异环专区路径为范围。旧条目若合并过该站内容，也会从活动证据中排除，等待按独立原文复核。
 - 检索是**纯词法**匹配：`app/core/chunk.py` 把中文切成 bigram、英文/数字整词保留，
   再拼成 FTS5 `MATCH` 串。因此**中英跨语言检索不通**，
   详见 README 首屏的 Chinese-first 说明。
 - 可选向量检索（embeddings API）默认关闭，仅作为增强。
+
+### 自动更新调度（`app/core/autoupdate.py`）
+
+- 配置主题按顺序轮转，并与可执行的待补主题交替。轮转位置保存在 SQLite，应用重启后继续。
+- 临时搜索或抓取故障会保留主题，依次在 5、10、20、40、60 分钟后开放重试。连续失败时退避维持在 60 分钟，抓取器的站点冷却时间更长时取较长时间。后台每 5 分钟检查一次，重试独立于正常更新周期。
+- 聊天再次识别出同一资料缺口时，已处理主题可以重新入队。仍在等待的主题保留现有退避时间。
+- 同一轮的候选页共享 `max_pages_per_run`，抓取失败和按规则跳过也计入。更新报告显示本轮用量及等待重试的主题数。
 
 ---
 
@@ -233,7 +250,7 @@ trust = 0.45 × 来源等级      official 1.0 / manual 0.95 / wiki 0.75 / seed 
 | 问答链路与提示词 | `app/core/rag.py` |
 | HTTP 接口 | `app/server/api.py` |
 | 界面 | `app/web/index.html` / `style.css` / `app.js` |
-| 自检断言（704 项） | `tools/quality_check.py` |
+| 数据质量机制回归 | `tools/quality_check.py` |
 | 版本资源与发布件 | `tools/make_version_info.py` / `tools/build_exe.ps1` |
 
 ---

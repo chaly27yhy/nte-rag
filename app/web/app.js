@@ -6,11 +6,13 @@ let APP_STATE = null;
 let CURRENT_CONFIG = null;
 let CHAT_HISTORY = [];
 let CHAT_ABORT = null;
+let CHAT_WEB_DEFAULT = false;
 let TOAST_TIMER = null;         // 同一时刻只允许一个 toast 倒计时，否则先来的那次会提前藏掉后来的提示
 let polling = null;
 let updateWasRunning = false;   // 用于捕捉「自动更新刚跑完」，好刷新推荐问题
 let updatePollErrors = 0;       // 连续失败次数：只在第 3 次开始提示，避免刷屏
 let updateErrorShown = false;
+let seedRetrying = false;
 
 /* ------------------------------------------------------------------ */
 /* 基础工具                                                            */
@@ -268,7 +270,9 @@ function sourceBadges(source) {
   const note = String((source && source.note) || '');
   const cls = String((source && source.source_class) || '');
   let html = '';
-  if (note.indexOf('施工中') >= 0) {
+  if (source && source.paused_reason) {
+    html += '<span class="tag warn">暂停使用</span>';
+  } else if (note.indexOf('施工中') >= 0) {
     html += '<span class="tag warn" title="' + esc(note) + '">施工中·可靠性待确认</span>';
   }
   if (cls === 'narrative' || note.indexOf('叙事/世界观') >= 0) {
@@ -457,7 +461,7 @@ function loadState(priority) {
   // （同一个 key 上有更高优先级的请求在飞），这次轮询直接跳过。
   return latestOnly('state', () => api('/api/state'), undefined, {
     priority: priority,
-    paint: (state) => { APP_STATE = state; renderStatusPills(); }
+    paint: (state) => { APP_STATE = state; renderStatusPills(); renderSeedImport(); }
   });
 }
 
@@ -526,17 +530,18 @@ function shortUrl(url) {
   }
 }
 
-function renderSources(citations, webUsed, warnings) {
+function renderSources(citations, webUsed, warnings, candidateOnly = false) {
   const warnBlock = (list) => {
     if (!list || !list.length) return '';
-    return '<div class="cite-group"><div class="cite-group-title">' + icon('i-warn') + '抓取过程中的提示</div>'
+    return '<div class="cite-group"><div class="cite-group-title">' + icon('i-warn') + '资料提示</div>'
       + list.map((w) => '<div class="source-item">· ' + esc(w) + '</div>').join('') + '</div>';
   };
   if (!citations || !citations.length) {
     return warnBlock(warnings) ? '<div class="sources">' + warnBlock(warnings) + '</div>' : '';
   }
   let html = '<div class="sources"><div class="cite-group-title">'
-    + icon('i-link') + '来源' + (webUsed ? '（含本次联网抓取）' : '（本地知识库）') + '</div>';
+    + icon('i-link') + (candidateOnly ? '检索到的资料（回答未提供有效引用）' : '来源')
+    + (webUsed ? '（含本次联网抓取）' : '（本地知识库）') + '</div>';
   citations.forEach((item) => {
     const title = item.title || '未命名';
     const badges = sourceTag(item.source_type)
@@ -547,7 +552,7 @@ function renderSources(citations, webUsed, warnings) {
     }
     if (item.updated_at) meta.push('<span>' + icon('i-clock') + esc(fmtTime(item.updated_at)) + '</span>');
     html += '<div class="cite-card">'
-      + '<span class="idx">[' + esc(item.index) + ']</span>'
+      + (candidateOnly ? '' : '<span class="idx">[' + esc(item.index) + ']</span>')
       + '<div class="cite-body">'
       + '<div class="cite-title">' + esc(title) + badges + '</div>'
       + (meta.length ? '<div class="cite-meta">' + meta.join('') + '</div>' : '')
@@ -567,6 +572,9 @@ async function sendQuestion() {
     toast('问题太长了（上限 4000 字），请精简后重试', 'error');
     return;
   }
+  const web = $('allow-web');
+  const allowWeb = web.checked;
+  web.checked = CHAT_WEB_DEFAULT;
   $('question').value = '';
   autoGrowQuestion();
   appendBubble('user', '<p>' + esc(question) + '</p>');
@@ -593,7 +601,7 @@ async function sendQuestion() {
       body: JSON.stringify({
         question: question,
         history: CHAT_HISTORY.slice(-6),
-        allow_web: $('allow-web').checked
+        allow_web: allowWeb
       }),
       signal: controller.signal
     });
@@ -630,9 +638,8 @@ async function sendQuestion() {
         answer.push(event.text || '');
       } else if (event.type === 'done') {
         const answerText = answer.flush();
-        // done 里带的是「按回答真正引用过的编号收窄过」的清单：sources 事件在全文
-        // 生成完之前就要发出去，只能给完整清单，所以这里以收窄后的为准（有才覆盖）。
         if (Array.isArray(event.citations)) citations = event.citations;
+        const candidates = event.candidate_sources || [];
         const meta = [];
         if (event.latency_ms) meta.push((event.latency_ms / 1000).toFixed(1) + ' 秒');
         if (event.retrieval) {
@@ -645,7 +652,8 @@ async function sendQuestion() {
           + (answerText ? '<button type="button" class="ghost cite-copy" data-copy-answer="1">'
             + icon('i-copy') + '复制回答</button>' : '')
           + '</div>'
-          + renderSources(citations, webUsed, warnings);
+          + renderSources(citations.length ? citations : candidates, webUsed, warnings,
+            !citations.length && candidates.length > 0);
         bubble.dataset.raw = answerText;
       } else if (event.type === 'error') {
         // 流内错误（模型调用失败等）：先停掉节流绘制，
@@ -949,7 +957,8 @@ function loadSources() {
     const builtin = data.builtin || [];
     $('source-list').innerHTML = builtin.length ? builtin.map((source) => {
       return '<div class="item"><div class="item-head"><div>'
-        + '<label class="switch"><input type="checkbox" data-source="' + esc(source.id) + '"' + (source.enabled ? ' checked' : '') + ' />'
+        + '<label class="switch"><input type="checkbox" data-source="' + esc(source.id) + '"'
+        + (source.paused_reason ? ' disabled' : (source.enabled ? ' checked' : '')) + ' />'
         + '<span class="item-title">' + esc(source.name) + '</span>' + sourceTag(source.source_type)
         + sourceBadges(source) + '</label>'
         + '<div class="item-meta">' + esc(source.note || '') + '</div>'
@@ -1256,6 +1265,9 @@ function fillConfig(config) {
 
   const answer = config.answer || {};
   $('answer-auto-web').checked = !!answer.auto_web;
+  const chatWeb = $('allow-web');
+  if (chatWeb.checked === CHAT_WEB_DEFAULT) chatWeb.checked = !!answer.auto_web;
+  CHAT_WEB_DEFAULT = !!answer.auto_web;
   $('answer-threshold').value = answer.web_trigger_score;
   $('answer-maxpages').value = answer.max_web_pages;
 
@@ -1405,6 +1417,43 @@ function renderAbout() {
   ];
   $('about-paths').innerHTML = rows.map((pair) =>
     '<div class="k">' + esc(pair[0]) + '</div><div class="v">' + esc(pair[1]) + '</div>').join('');
+  renderSeedImport();
+}
+
+function renderSeedImport() {
+  const state = APP_STATE && APP_STATE.seed_import;
+  const status = $('seed-import-status');
+  const button = $('seed-retry');
+  const loading = seedRetrying || (state && state.status === 'running');
+  const failed = state && state.status === 'failed';
+  const message = loading ? '正在重新导入内置资料…'
+    : failed ? '内置资料导入未完成。可以重试导入。'
+    : state && state.status === 'ready' ? '内置资料已就绪' : '';
+  if (status.textContent !== message) status.textContent = message;
+  if (!loading && !failed && document.activeElement === button) status.focus();
+  button.classList.toggle('hidden', !loading && !failed);
+  button.disabled = !!loading;
+  button.setAttribute('aria-busy', String(!!loading));
+}
+
+async function retrySeedImport() {
+  if (seedRetrying) return;
+  seedRetrying = true;
+  renderSeedImport();
+  try {
+    const status = await api('/api/kb/seed/retry', { method: 'POST' });
+    if (APP_STATE) APP_STATE.seed_import = status;
+    if (status.status === 'ready') {
+      $('seed-import-status').focus();
+      toast('内置资料已就绪', 'ok');
+    }
+    await loadState('user');
+  } catch (error) {
+    toast('无法重试导入，请刷新后再试', 'error');
+  } finally {
+    seedRetrying = false;
+    renderSeedImport();
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -1819,6 +1868,7 @@ function bindEvents() {
 
   /* --- 问答增强：停止生成 / 复制回答 / 示例问题 --- */
   $('stop-btn').addEventListener('click', () => { if (CHAT_ABORT) CHAT_ABORT.abort(); });
+  $('seed-retry').addEventListener('click', retrySeedImport);
   $('chat-log').addEventListener('click', (event) => {
     const button = event.target.closest && event.target.closest('[data-copy-answer]');
     if (!button) return;
