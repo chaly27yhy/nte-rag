@@ -38,7 +38,7 @@ setuptools==84.2.1
 altgraph==0.17.5
 annotated-doc==0.0.5
 annotated-types==0.8.0
-anyio==4.15.1
+anyio==4.16.0
 babel==2.18.0
 bottle==0.13.4
 cffi==2.1.1
