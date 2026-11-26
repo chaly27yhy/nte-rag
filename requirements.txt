@@ -5,7 +5,7 @@
 # 中文分词由 app/core/chunk.py 实现（汉字 bigram + 英文单词 + 数字）；
 # jieba 是软依赖：运行环境里恰好有就自动启用为增强，没有也照常工作。
 
-fastapi>=0.115
+fastapi>=0.165.0
 # app/server/api.py 直接 import，不靠 FastAPI 的传递依赖兜底
 pydantic>=2.9
 starlette>=1.7.0
